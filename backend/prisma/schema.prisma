@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VOLUNTEER
+  MANAGER
+  ADMIN
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  ATTENDED
+}
+
+enum EventStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  firstName         String
+  lastName          String
+  bio               String?
+  avatarUrl         String?
+  role              Role     @default(VOLUNTEER)
+  isLocked          Boolean  @default(false)
+  pushNotifications Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  eventsCreated        Event[]
+  registrations        Registration[]
+  posts                Post[]
+  comments             Comment[]
+  likes                Like[]
+  notifications        Notification[]
+  webPushSubscriptions WebPushSubscription[]
+
+  @@map("users")
+}
+
+model Event {
+  id                  String      @id @default(uuid())
+  title               String
+  description         String
+  startDate           DateTime
+  endDate             DateTime
+  location            String
+  category            String
+  maxParticipants     Int
+  currentParticipants Int         @default(0)
+  thumbnailUrl        String?
+  status              EventStatus @default(DRAFT)
+  submissionNote      String? // For approval reasons
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relationships
+  creatorId     String
+  creator       User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  registrations Registration[]
+  posts         Post[]
+
+  @@map("events")
+}
+
+model Registration {
+  id          String             @id @default(uuid())
+  userId      String
+  eventId     String
+  status      RegistrationStatus @default(PENDING)
+  appliedAt   DateTime           @default(now())
+  approvedAt  DateTime?
+  completedAt DateTime?
+  reason      String? // For rejection/cancellation reason
+
+  // Relationships
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("registrations")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  content   String
+  imageUrl  String?
+  authorId  String
+  eventId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    Like[]
+
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  authorId  String
+  postId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String // e.g. 'event_approval', 'registration_status', 'new_comment', etc.
+  isRead    Boolean  @default(false)
+  data      Json? // Additional notification data
+  sentAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String
+  p256dh    String // Public key for encryption
+  auth      String // Auth token for encryption
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@map("web_push_subscriptions")
+}
