@@ -50,7 +50,8 @@ If you prefer using Docker, run this command:
 ```bash
 docker run --name volunteerhub-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=volunteer_hub -p 5433:5432 -d postgres:15
 ```
-
+FRONTEND PORT IS 3000
+BACKEND PORT IS 5000
 Note: The database runs on port 5433 instead of the default 5432 to avoid conflicts with other PostgreSQL instances.
 
 ### 2. Backend Configuration
