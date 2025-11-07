@@ -76,17 +76,26 @@ Note: The database runs on port 5433 instead of the default 5432 to avoid confli
    
    Update the `.env` file with your configuration:
    ```env
+   # Database
    DATABASE_URL="postgresql://postgres:postgres@localhost:5433/volunteer_hub"
+   ~~
+   # JWT Configuration
    JWT_SECRET="your-jwt-secret-key-here"
    JWT_EXPIRES_IN="24h"
    REFRESH_TOKEN_SECRET="your-refresh-token-secret"
    REFRESH_TOKEN_EXPIRES_IN="7d"
-   SUPABASE_URL="your-supabase-project-url"
-   SUPABASE_ANON_KEY="your-supabase-anon-key"
-   SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
+
+   # Supabase Configuration (Replace with your actual values)
+   SUPABASE_URL="https://oxexnkobaxieuaiwydte.supabase.co"
+   SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94ZXhua29iYXhpZXVhaXd5ZHRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyMTkzNDMsImV4cCI6MjA3Nzc5NTM0M30.TPCI8gmpdhWU40Up_0nLmEJFcx2I3fJjVh4CTEyTq5E"
+   SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94ZXhua29iYXhpZXVhaXd5ZHRlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjIxOTM0MywiZXhwIjoyMDc3Nzk1MzQzfQ.GOQ2iuoBHdaqTe4seviBXJjEAXU6C8aoOKG6FuCVGAw"
+
+   # Web Push Notifications
    VAPID_PUBLIC_KEY="your-vapid-public-key"
    VAPID_PRIVATE_KEY="your-vapid-private-key"
    VAPID_SUBJECT="mailto:admin@volunteerhub.com"
+
+   # Server Configuration
    PORT=5000
    NODE_ENV=development
    ```

@@ -6,6 +6,7 @@ import authRoutes from './auth.js';
 import userRoutes from './users.js';
 import eventRoutes from './events.js';
 import registrationRoutes from './registrations.js';
+import exampleRoutes from './examples.js';
 
 // Root route
 router.get('/', (req, res) => {
@@ -16,7 +17,8 @@ router.get('/', (req, res) => {
       auth: '/api/auth',
       users: '/api/users',
       events: '/api/events',
-      registrations: '/api/registrations'
+      registrations: '/api/registrations',
+      examples: '/api/examples'
     }
   });
 });
@@ -31,5 +33,6 @@ router.use('/api/auth', authRoutes);
 router.use('/api/users', userRoutes);
 router.use('/api/events', eventRoutes);
 router.use('/api/registrations', registrationRoutes);
+router.use('/api/examples', exampleRoutes);
 
 export default router;

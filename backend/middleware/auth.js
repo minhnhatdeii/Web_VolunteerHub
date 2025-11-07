@@ -1,21 +1,127 @@
-// Authentication middleware placeholder (to be implemented in Milestone 2)
-const authenticateToken = (req, res, next) => {
-  // This is a placeholder implementation
-  // In Milestone 2, this will verify JWT tokens
-  console.log('Authentication middleware - token verification will be implemented in Milestone 2');
-  next();
+import { verifyAccessToken } from '../utils/jwt.js';
+import prisma from '../db.js';
+
+/**
+ * Middleware to authenticate JWT token
+ * Extracts token from Authorization header and verifies it
+ */
+export const authenticateToken = async (req, res, next) => {
+  // Get token from Authorization header
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ 
+      error: 'Access token is required' 
+    });
+  }
+
+  try {
+    // Verify the token
+    const decoded = verifyAccessToken(token);
+    if (!decoded) {
+      return res.status(403).json({ 
+        error: 'Invalid or expired token' 
+      });
+    }
+
+    // Find user in database to ensure they exist and are not locked
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId }
+    });
+
+    if (!user) {
+      return res.status(401).json({ 
+        error: 'User not found' 
+      });
+    }
+
+    if (user.isLocked) {
+      return res.status(401).json({ 
+        error: 'Account is locked' 
+      });
+    }
+
+    // Add user info to request object
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    };
+
+    next();
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(500).json({ 
+      error: 'Internal server error during authentication' 
+    });
+  }
 };
 
-const authorizeRole = (roles) => {
-  // This is a placeholder implementation
-  // In Milestone 2, this will check user roles for authorization
+/**
+ * Middleware to authorize user roles
+ * @param {Array} allowedRoles - Array of roles that are allowed to access the route
+ */
+export const authorizeRole = (allowedRoles) => {
   return (req, res, next) => {
-    console.log(`Authorization middleware - role check will be implemented in Milestone 2 for roles: ${roles.join(', ')}`);
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: 'Authentication required' 
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        error: 'Insufficient permissions' 
+      });
+    }
+
     next();
   };
 };
 
-module.exports = {
-  authenticateToken,
-  authorizeRole
+/**
+ * Middleware to check if user is authenticated with specific role
+ * @param {string} role - Role that is required to access the route
+ */
+export const requireRole = (role) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: 'Authentication required' 
+      });
+    }
+
+    if (req.user.role !== role) {
+      return res.status(403).json({ 
+        error: 'Insufficient permissions. Required role: ' + role
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware to check if the user is accessing their own resource
+ * @param {string} idParam - Parameter name that contains the user ID (default: 'id')
+ */
+export const requireOwnResource = (idParam = 'id') => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: 'Authentication required' 
+      });
+    }
+
+    const targetUserId = req.params[idParam] || req.body.userId;
+    
+    if (req.user.id !== targetUserId) {
+      return res.status(403).json({ 
+        error: 'Cannot access another user\'s resource' 
+      });
+    }
+
+    next();
+  };
 };

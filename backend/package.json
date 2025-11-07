@@ -10,7 +10,10 @@
     "migrate": "node scripts/migrate.js",
     "prisma:generate": "npx prisma generate",
     "prisma:studio": "npx prisma studio",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose",
+    "test:auth": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/test_auth_*.js --verbose",
+    "test:middleware": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/test_*middleware*.js --verbose",
+    "test:all": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/ --verbose"
   },
   "keywords": [],
   "author": "",
@@ -18,13 +21,17 @@
   "dependencies": {
     "@prisma/client": "^6.18.0",
     "@supabase/supabase-js": "^2.78.0",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "prisma": "^6.18.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
   }
 }
