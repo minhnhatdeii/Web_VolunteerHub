@@ -19,18 +19,34 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email && password) {
-        // Mock authentication - in real app, call /api/auth/login
-        const role = email.includes("manager") ? "manager" : email.includes("admin") ? "admin" : "volunteer"
-        localStorage.setItem("user", JSON.stringify({ email, role }))
-        window.location.href = `/dashboard/${role}`
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Store user data and tokens in localStorage or cookies
+        localStorage.setItem("user", JSON.stringify(data.user))
+        localStorage.setItem("accessToken", data.accessToken)
+        localStorage.setItem("refreshToken", data.refreshToken)
+        window.location.href = `/dashboard/${data.user.role.toLowerCase()}`
       } else {
-        setError("Vui lòng nhập email và mật khẩu")
+        const errorData = await response.json()
+        setError(errorData.error || "Đăng nhập thất bại. Vui lòng thử lại.")
       }
+    } catch (error) {
+      setError("Lỗi kết nối. Vui lòng thử lại.")
+    } finally {
       setLoading(false)
-    }, 500)
+    }
   }
 
   return (

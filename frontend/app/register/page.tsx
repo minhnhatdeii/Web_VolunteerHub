@@ -44,12 +44,37 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      // In real app, call /api/auth/register
-      window.location.href = "/login"
+    try {
+      // Split name into first and last name
+      const nameParts = formData.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ' '; // Use space if no last name provided
+
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: firstName,
+          lastName: lastName
+        }),
+      })
+
+      if (response.ok) {
+        // Registration successful
+        window.location.href = "/login"
+      } else {
+        const data = await response.json()
+        setError(data.error || "Đăng ký thất bại. Vui lòng thử lại.")
+      }
+    } catch (error) {
+      setError("Lỗi kết nối. Vui lòng thử lại.")
+    } finally {
       setLoading(false)
-    }, 500)
+    }
   }
 
   return (
