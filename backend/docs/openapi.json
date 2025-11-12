@@ -1,0 +1,159 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "VolunteerHub API",
+    "version": "1.0.0",
+    "description": "API documentation for VolunteerHub backend"
+  },
+  "servers": [
+    { "url": "http://localhost:5000/api", "description": "Local API" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "bio": { "type": "string", "nullable": true },
+          "avatarUrl": { "type": "string", "nullable": true },
+          "role": { "type": "string", "enum": ["VOLUNTEER", "MANAGER", "ADMIN"] },
+          "isLocked": { "type": "boolean" },
+          "pushNotifications": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AuthLoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" }
+        }
+      },
+      "AuthRegisterRequest": {
+        "type": "object",
+        "required": ["email", "password", "firstName", "lastName"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" }
+        }
+      },
+      "LockRequest": {
+        "type": "object",
+        "required": ["isLocked"],
+        "properties": { "isLocked": { "type": "boolean" } }
+      },
+      "UpdateMeRequest": {
+        "type": "object",
+        "properties": {
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "bio": { "type": "string" },
+          "avatarUrl": { "type": "string" },
+          "pushNotifications": { "type": "boolean" },
+          "currentPassword": { "type": "string" },
+          "newPassword": { "type": "string" }
+        }
+      },
+      "UploadAvatarRequest": {
+        "type": "object",
+        "properties": {
+          "dataUrl": { "type": "string", "description": "data:image/png;base64,..." },
+          "base64": { "type": "string" },
+          "contentType": { "type": "string", "example": "image/png" }
+        }
+      }
+    }
+  },
+  "security": [],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AuthRegisterRequest" } }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AuthLoginRequest" } }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "summary": "Get current user",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Current user profile",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update current user",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/UpdateMeRequest" } }
+          }
+        },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/users/me/avatar": {
+      "post": {
+        "summary": "Upload avatar (Supabase)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/UploadAvatarRequest" } }
+          }
+        },
+        "responses": { "200": { "description": "Uploaded" } }
+      }
+    },
+    "/users/{id}/lock": {
+      "post": {
+        "summary": "Lock/unlock account",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LockRequest" } } }
+        },
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not Found" } }
+      }
+    }
+  }
+}
+

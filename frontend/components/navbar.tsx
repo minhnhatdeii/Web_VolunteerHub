@@ -1,11 +1,61 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Menu, X } from "lucide-react"
+
+type AppUser = {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  role?: string
+}
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+  const [user, setUser] = useState<AppUser | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("user")
+      const at = localStorage.getItem("accessToken")
+      if (u) setUser(JSON.parse(u))
+      if (at) setAccessToken(at)
+    } catch (_) {
+      // ignore
+    } finally {
+      setHydrated(true)
+    }
+  }, [])
+
+  const isAuthenticated = !!user && !!accessToken
+
+  const dashboardHref = useMemo(() => {
+    const role = user?.role?.toLowerCase()
+    if (!role) return "/dashboard/volunteer"
+    if (["admin", "manager", "volunteer"].includes(role)) return `/dashboard/${role}`
+    return "/dashboard/volunteer"
+  }, [user])
+
+  const displayName = useMemo(() => {
+    if (!user) return ""
+    const full = [user.firstName, user.lastName].filter(Boolean).join(" ").trim()
+    return full || user.email || ""
+  }, [user])
+
+  const logout = () => {
+    try {
+      localStorage.removeItem("user")
+      localStorage.removeItem("accessToken")
+      localStorage.removeItem("refreshToken")
+    } catch (_) {}
+    setUser(null)
+    setAccessToken(null)
+    if (typeof window !== "undefined") window.location.href = "/"
+  }
 
   return (
     <nav className="bg-white border-b border-border sticky top-0 z-50">
@@ -28,14 +78,30 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex gap-4">
-            <Link href="/login" className="btn-secondary">
-              Đăng nhập
-            </Link>
-            <Link href="/register" className="btn-primary">
-              Đăng ký
-            </Link>
+          {/* Auth Area */}
+          <div className="hidden md:flex gap-4 items-center">
+            {!hydrated ? null : isAuthenticated ? (
+              <>
+                <Link href={dashboardHref} className="btn-secondary">
+                  Dashboard
+                </Link>
+                <Link href="/profile" className="btn-secondary">
+                  {displayName || "Tài khoản"}
+                </Link>
+                <button onClick={logout} className="btn-primary">
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="btn-secondary">
+                  Đăng nhập
+                </Link>
+                <Link href="/register" className="btn-primary">
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -56,17 +122,31 @@ export default function Navbar() {
             <Link href="/contact" className="block py-2 text-foreground hover:text-primary">
               Liên hệ
             </Link>
-            <div className="flex gap-2 pt-2">
-              <Link href="/login" className="flex-1 btn-secondary text-center">
-                Đăng nhập
-              </Link>
-              <Link href="/register" className="flex-1 btn-primary text-center">
-                Đăng ký
-              </Link>
-            </div>
+            {hydrated && (
+              isAuthenticated ? (
+                <div className="flex gap-2 pt-2">
+                  <Link href={dashboardHref} className="flex-1 btn-secondary text-center">
+                    Dashboard
+                  </Link>
+                  <button onClick={() => { setIsOpen(false); logout(); }} className="flex-1 btn-primary text-center">
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2 pt-2">
+                  <Link href="/login" className="flex-1 btn-secondary text-center">
+                    Đăng nhập
+                  </Link>
+                  <Link href="/register" className="flex-1 btn-primary text-center">
+                    Đăng ký
+                  </Link>
+                </div>
+              )
+            )}
           </div>
         )}
       </div>
     </nav>
   )
 }
+

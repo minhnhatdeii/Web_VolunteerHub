@@ -4,9 +4,27 @@ import helmet from 'helmet';
 import 'dotenv/config';
 import routes from './routes/index.js';
 import prisma from './db.js';
+import swaggerUi from 'swagger-ui-express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// ESM helpers to locate files relative to this module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const swaggerPath = path.join(__dirname, 'docs', 'openapi.json');
+let swaggerDocument = null;
+try {
+  if (fs.existsSync(swaggerPath)) {
+    const raw = fs.readFileSync(swaggerPath, 'utf-8');
+    swaggerDocument = JSON.parse(raw);
+  }
+} catch (e) {
+  console.warn('Failed to load Swagger document:', e?.message);
+}
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -21,6 +39,9 @@ app.use((req, res, next) => {
 });
 
 // Routes
+if (swaggerDocument) {
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+}
 app.use('/', routes);
 
 // 404 handler
