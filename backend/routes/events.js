@@ -29,11 +29,11 @@ router.put(
   EventController.updateEvent
 );
 
-// 5. DELETE /api/events/:id  (Manager only)
+// 5. DELETE /api/events/:id  (Manager, Admin)
 router.delete(
   "/:id",
   authenticateToken,
-  requireRole("MANAGER"),
+  requireRole(["MANAGER", "ADMIN"]),
   EventController.deleteEvent
 );
 
@@ -48,8 +48,6 @@ router.post(
 // 7. GET /api/managers/:id/events (list manager’s events)
 router.get(
   "/:id/events",
-  authenticateToken,
-  requireRole("MANAGER"),
   EventController.getManagerEvents
 );
 

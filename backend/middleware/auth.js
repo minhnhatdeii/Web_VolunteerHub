@@ -81,20 +81,22 @@ export const authorizeRole = (allowedRoles) => {
 };
 
 /**
- * Middleware to check if user is authenticated with specific role
- * @param {string} role - Role that is required to access the route
+ * Require one or more roles to access a route
+ * @param {string|string[]} roles - allowed roles
  */
-export const requireRole = (role) => {
+export const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ 
-        error: 'Authentication required' 
+      return res.status(401).json({
+        error: "Authentication required",
       });
     }
 
-    if (req.user.role !== role) {
-      return res.status(403).json({ 
-        error: 'Insufficient permissions. Required role: ' + role
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        error: `Insufficient permissions. Allowed roles: ${allowedRoles.join(", ")}`,
       });
     }
 
