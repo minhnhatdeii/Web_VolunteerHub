@@ -48,7 +48,12 @@
           "email": { "type": "string", "format": "email" },
           "password": { "type": "string" },
           "firstName": { "type": "string" },
-          "lastName": { "type": "string" }
+          "lastName": { "type": "string" },
+          "role": {
+            "type": "string",
+            "enum": ["VOLUNTEER", "MANAGER"],
+            "description": "User role during registration. Defaults to VOLUNTEER if not provided."
+          }
         }
       },
       "LockRequest": {
@@ -83,25 +88,61 @@
     "/auth/register": {
       "post": {
         "summary": "Register",
+        "description": "Register a new user account. Role can be specified as VOLUNTEER or MANAGER, defaults to VOLUNTEER if not provided.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": { "schema": { "$ref": "#/components/schemas/AuthRegisterRequest" } }
           }
         },
-        "responses": { "201": { "description": "Created" } }
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "User registered successfully" },
+                    "user": { "$ref": "#/components/schemas/User" },
+                    "accessToken": { "type": "string" },
+                    "refreshToken": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/auth/login": {
       "post": {
         "summary": "Login",
+        "description": "Authenticate user and return access/refresh tokens along with user data",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": { "schema": { "$ref": "#/components/schemas/AuthLoginRequest" } }
           }
         },
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Login successful" },
+                    "user": { "$ref": "#/components/schemas/User" },
+                    "accessToken": { "type": "string" },
+                    "refreshToken": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/users/me": {
