@@ -45,13 +45,21 @@ router.post(
   EventController.submitEventForApproval
 );
 
-// 7. GET /api/managers/:id/events (list manager’s events)
+// 7. POST /api/events/:id/approve (approve event)
+router.post(
+  "/:id/approve",
+  authenticateToken,
+  requireRole("ADMIN"),
+  EventController.approveEvent
+);
+
+// 8. GET /api/managers/:id/events (list manager’s events)
 router.get(
   "/:id/events",
   EventController.getManagerEvents
 );
 
-// 8. Upload thumbnail → Supabase
+// 9. Upload thumbnail → Supabase
 router.post(
   "/:id/upload-thumbnail",
   authenticateToken,
