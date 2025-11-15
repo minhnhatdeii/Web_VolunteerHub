@@ -80,6 +80,47 @@
           "base64": { "type": "string" },
           "contentType": { "type": "string", "example": "image/png" }
         }
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "startDate": { "type": "string", "format": "date-time" },
+          "endDate": { "type": "string", "format": "date-time" },
+          "location": { "type": "string" },
+          "category": { "type": "string" },
+          "maxParticipants": { "type": "integer" },
+          "currentParticipants": { "type": "integer" },
+          "thumbnailUrl": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["DRAFT","SUBMITTED","PENDING_APPROVAL","APPROVED","REJECTED","COMPLETED","CANCELLED"] },
+          "creatorId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["title","startDate","endDate","location","category","maxParticipants","creatorId"]
+      },
+      "EventCreateRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "startDate": { "type": "string" },
+          "endDate": { "type": "string" },
+          "location": { "type": "string" },
+          "category": { "type": "string" },
+          "maxParticipants": { "type": "string" },
+          "thumbnailUrl": { "type": "string" }
+        },
+        "required": ["title","startDate","endDate","location","category","maxParticipants"]
+      },
+      "ThumbnailUploadRequest": {
+        "type": "object",
+        "properties": {
+          "file": { "type": "string", "format": "binary" }
+        },
+        "required": ["file"]
       }
     }
   },
@@ -194,7 +235,88 @@
         },
         "responses": { "200": { "description": "OK" }, "404": { "description": "Not Found" } }
       }
+    },
+    "/events": {
+      "get": {
+        "summary": "List all events (with optional filters)",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "location", "in": "query", "schema": { "type": "string" } },
+          { "name": "q", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "List of events", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } }
+      },
+      "post": {
+        "summary": "Create a new event (manager/admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EventCreateRequest" } }
+          }
+        },
+        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "summary": "Get event details",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Event details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+      },
+      "put": {
+        "summary": "Update event (owner/admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EventCreateRequest" } } }
+        },
+        "responses": { "200": { "description": "Updated event", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+      },
+      "delete": {
+        "summary": "Delete event (owner/admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Deleted successfully" } }
+      }
+    },
+    "/events/{id}/submit": {
+      "post": {
+        "summary": "Submit event for approval",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Submitted for approval", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+      }
+    },
+    "/managers/{id}/events": {
+      "get": {
+        "summary": "Get events created by a manager",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Manager's events", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } }
+      }
+    },
+    "/events/upload-thumbnail": {
+      "post": {
+        "summary": "Upload event thumbnail (Supabase)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/ThumbnailUploadRequest" } } }
+        },
+        "responses": { "200": { "description": "Uploaded", "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string" } } } } } } }
+      }
     }
   }
 }
-
