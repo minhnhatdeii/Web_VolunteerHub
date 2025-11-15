@@ -8,5 +8,9 @@ export default {
     'routes/**/*.js',
     '!routes/index.js', // Exclude main routes index
   ],
-  transform: {}
+  transform: {},
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
+  testTimeout: 30000
 };

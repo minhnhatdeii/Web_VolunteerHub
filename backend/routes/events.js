@@ -1,33 +1,64 @@
 import express from 'express';
+import { authenticateToken, authorizeRole, requireOwnResource } from '../middleware/auth.js';
+import {
+  getAllEvents,
+  getEventDetail,
+  createEventHandler,
+  updateEventHandler,
+  deleteEventHandler,
+  submitEvent,
+  getManagerEventsHandler
+} from '../controllers/events.controller.js';
+
 const router = express.Router();
 
-// Placeholder routes for event management (to be implemented in Milestone 4)
-router.get('/', (req, res) => {
-  res.status(501).json({ error: 'Get events endpoint not implemented yet' });
-});
+/**
+ * Get all events with optional filters
+ * GET /api/events
+ * Public endpoint (no authentication required)
+ */
+router.get('/', getAllEvents);
 
-router.get('/:id', (req, res) => {
-  res.status(501).json({ error: 'Get event details endpoint not implemented yet' });
-});
+/**
+ * Get event by ID
+ * GET /api/events/:id
+ * Public endpoint (no authentication required)
+ */
+router.get('/:id', getEventDetail);
 
-router.post('/', (req, res) => {
-  res.status(501).json({ error: 'Create event endpoint not implemented yet' });
-});
+/**
+ * Create event
+ * POST /api/events
+ * Manager and Admin only
+ */
+router.post('/', authenticateToken, authorizeRole(['MANAGER', 'ADMIN']), createEventHandler);
 
-router.put('/:id', (req, res) => {
-  res.status(501).json({ error: 'Edit event endpoint not implemented yet' });
-});
+/**
+ * Update event
+ * PUT /api/events/:id
+ * Event creator (manager) or Admin only
+ */
+router.put('/:id', authenticateToken, authorizeRole(['MANAGER', 'ADMIN']), updateEventHandler);
 
-router.delete('/:id', (req, res) => {
-  res.status(501).json({ error: 'Delete event endpoint not implemented yet' });
-});
+/**
+ * Delete event
+ * DELETE /api/events/:id
+ * Event creator (manager) or Admin only
+ */
+router.delete('/:id', authenticateToken, authorizeRole(['MANAGER', 'ADMIN']), deleteEventHandler);
 
-router.post('/:id/submit', (req, res) => {
-  res.status(501).json({ error: 'Event submission for approval endpoint not implemented yet' });
-});
+/**
+ * Submit event for approval
+ * POST /api/events/:id/submit
+ * Event creator (manager) only
+ */
+router.post('/:id/submit', authenticateToken, authorizeRole(['MANAGER', 'ADMIN']), submitEvent);
 
-router.get('/:id/registrations', (req, res) => {
-  res.status(501).json({ error: 'Get event registrations endpoint not implemented yet' });
-});
+/**
+ * Get manager's events
+ * GET /api/managers/:id/events
+ * Manager and Admin only (managers can only access their own events, admins can access any manager's events)
+ */
+router.get('/managers/:id/events', authenticateToken, authorizeRole(['MANAGER', 'ADMIN']), getManagerEventsHandler);
 
 export default router;

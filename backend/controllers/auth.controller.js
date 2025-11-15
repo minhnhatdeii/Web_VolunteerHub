@@ -2,11 +2,22 @@ import { loginService, refreshService, registerService } from '../services/auth.
 
 export async function register(req, res) {
   try {
-    const { email, password, firstName, lastName } = req.body || {};
+    const { email, password, firstName, lastName, role } = req.body || {};
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ error: 'Email, password, firstName, and lastName are required' });
     }
-    const result = await registerService({ email, password, firstName, lastName });
+
+    // Validate role if provided and normalize to uppercase
+    let normalizedRole = role;
+    if (role) {
+      const roleUpperCase = role.toUpperCase();
+      if (!['VOLUNTEER', 'MANAGER'].includes(roleUpperCase)) {
+        return res.status(400).json({ error: 'Invalid role for registration. Valid roles are: VOLUNTEER, MANAGER' });
+      }
+      normalizedRole = roleUpperCase;
+    }
+
+    const result = await registerService({ email, password, firstName, lastName, role: normalizedRole });
     if (result.error) return res.status(result.error).json({ error: result.message });
     return res.status(201).json({ message: 'User registered successfully', ...result });
   } catch (error) {

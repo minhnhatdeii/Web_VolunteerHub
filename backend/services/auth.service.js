@@ -2,14 +2,26 @@ import bcrypt from 'bcrypt';
 import { create, findByEmail, findById } from '../repositories/user.repo.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 
-export async function registerService({ email, password, firstName, lastName }) {
+export async function registerService({ email, password, firstName, lastName, role = 'VOLUNTEER' }) {
   const existing = await findByEmail(email);
   if (existing) {
     return { error: 409, message: 'User with this email already exists' };
   }
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
-  const user = await create({ email, password: hashedPassword, firstName, lastName }, {
+
+  // Only allow VOLUNTEER and MANAGER roles during registration (prevent users from registering as admin)
+  // Normalize role to uppercase for comparison
+  const roleToCheck = role ? role.toUpperCase() : 'VOLUNTEER';
+  const allowedRole = ['VOLUNTEER', 'MANAGER'].includes(roleToCheck) ? roleToCheck : 'VOLUNTEER';
+
+  const user = await create({
+    email,
+    password: hashedPassword,
+    firstName,
+    lastName,
+    role: allowedRole
+  }, {
     id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true, updatedAt: true
   });
   const accessToken = generateAccessToken({ userId: user.id, email: user.email, role: user.role });

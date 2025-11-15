@@ -1,21 +1,40 @@
 import express from 'express';
+import { authenticateToken } from '../middleware/auth.js';
+import {
+  registerForEventHandler,
+  cancelRegistrationHandler,
+  getUserRegistrationsHandler,
+  approveRegistrationHandler
+} from '../controllers/registrations.controller.js';
+
 const router = express.Router();
 
-// Placeholder routes for registration system (to be implemented in Milestone 6)
-router.post('/:id/register', (req, res) => {
-  res.status(501).json({ error: 'Event registration endpoint not implemented yet' });
-});
+/**
+ * Register for an event
+ * POST /api/events/:id/register
+ * Requires authentication (volunteers can register)
+ */
+router.post('/:id/register', authenticateToken, registerForEventHandler);
 
-router.post('/:id/cancel', (req, res) => {
-  res.status(501).json({ error: 'Cancel registration endpoint not implemented yet' });
-});
+/**
+ * Cancel registration
+ * POST /api/events/:id/cancel
+ * Requires authentication (only user who registered can cancel)
+ */
+router.post('/:id/cancel', authenticateToken, cancelRegistrationHandler);
 
-router.get('/me', (req, res) => {
-  res.status(501).json({ error: 'Get user registrations endpoint not implemented yet' });
-});
+/**
+ * Get current user's registrations
+ * GET /api/users/me/registrations
+ * Requires authentication (only for current user)
+ */
+router.get('/me', authenticateToken, getUserRegistrationsHandler);
 
-router.post('/:eventId/registrations/:regId/approve', (req, res) => {
-  res.status(501).json({ error: 'Approve registration endpoint not implemented yet' });
-});
+/**
+ * Approve registration
+ * POST /api/events/:eventId/registrations/:regId/approve
+ * Event manager or admin only
+ */
+router.post('/:eventId/registrations/:regId/approve', authenticateToken, approveRegistrationHandler);
 
 export default router;
