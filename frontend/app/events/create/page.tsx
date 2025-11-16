@@ -1,15 +1,38 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import Link from "next/link"
 import { ArrowLeft, Upload } from "lucide-react"
 
+interface FormData {
+  title: string
+  description: string
+  startDate: string
+  startTime: string
+  endDate: string
+  endTime: string
+  location: string
+  category: string
+  maxVolunteers: string
+  image: File | null
+}
+
+interface FormErrors {
+  title?: string
+  description?: string
+  startDate?: string
+  startTime?: string
+  endDate?: string
+  endTime?: string
+  location?: string
+  maxVolunteers?: string
+  general?: string
+}
+
 export default function CreateEventPage() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: "",
     description: "",
     startDate: "",
@@ -19,33 +42,59 @@ export default function CreateEventPage() {
     location: "",
     category: "environment",
     maxVolunteers: "",
-    image: null as File | null,
+    image: null,
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const [errors, setErrors] = useState<FormErrors>({})
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData(prev => ({ ...prev, [name]: value }))
+    setErrors(prev => ({ ...prev, [name]: undefined })) // clear error on change
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFormData((prev) => ({ ...prev, image: e.target.files![0] }))
+      setFormData(prev => ({ ...prev, image: e.target.files![0] }))
     }
+  }
+
+  const validate = (): boolean => {
+    const newErrors: FormErrors = {}
+
+    if (!formData.title || formData.title.length < 3) newErrors.title = "Tên sự kiện phải >=3 ký tự"
+    if (!formData.description) newErrors.description = "Mô tả không được bỏ trống"
+    if (!formData.startDate) newErrors.startDate = "Chọn ngày bắt đầu"
+    if (!formData.startTime) newErrors.startTime = "Chọn giờ bắt đầu"
+    if (!formData.endDate) newErrors.endDate = "Chọn ngày kết thúc"
+    if (!formData.endTime) newErrors.endTime = "Chọn giờ kết thúc"
+    if (!formData.location || formData.location.length < 3) newErrors.location = "Địa điểm phải >=3 ký tự"
+    if (!formData.maxVolunteers || Number(formData.maxVolunteers) <= 0) newErrors.maxVolunteers = "Nhập số lượng tình nguyện viên hợp lệ"
+
+    if (formData.startDate && formData.startTime && formData.endDate && formData.endTime) {
+      const start = new Date(`${formData.startDate}T${formData.startTime}:00`)
+      const end = new Date(`${formData.endDate}T${formData.endTime}:00`)
+      if (end <= start) newErrors.endDate = "Thời gian kết thúc phải lớn hơn thời gian bắt đầu"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validate()) return
 
     const token = localStorage.getItem("accessToken")
     if (!token) {
-      alert("Bạn cần đăng nhập.")
+      setErrors({ general: "Bạn cần đăng nhập." })
       return
     }
 
-    // Ghép date + time thành datetime ISO
     const startDate = `${formData.startDate}T${formData.startTime}:00.000Z`
-    const endDate = `${formData.endDate}T${formData.endTime}:00.000Z` 
-    // ❗️Nếu bạn cho phép ngày kết thúc khác ngày bắt đầu thì dùng form khác
+    const endDate = `${formData.endDate}T${formData.endTime}:00.000Z`
 
     try {
       const res = await fetch("http://localhost:5000/api/events", {
@@ -61,22 +110,29 @@ export default function CreateEventPage() {
           endDate,
           location: formData.location,
           category: formData.category,
-          maxParticipants: Number(formData.maxVolunteers)
-        })
-      });
-
+          maxParticipants: Number(formData.maxVolunteers),
+        }),
+      })
 
       const data = await res.json()
 
       if (!res.ok) {
-        console.error(data)
-        alert("Lỗi: " + (data.errors || "Không thể tạo sự kiện"))
+        if (data.errors) {
+          const zodErrors: FormErrors = {}
+          data.errors.forEach((err: any) => {
+            const field = err.path?.[0] as keyof FormErrors | undefined
+            if (field) {
+              zodErrors[field] = err.message
+            }
+          })
+          setErrors(zodErrors)
+        } else {
+          setErrors({ general: data.error || "Không thể tạo sự kiện" })
+        }
         return
       }
 
       alert("Tạo sự kiện thành công và đã gửi duyệt!")
-      
-      // Reset form
       setFormData({
         title: "",
         description: "",
@@ -89,10 +145,10 @@ export default function CreateEventPage() {
         maxVolunteers: "",
         image: null,
       })
-
-    } catch (error) {
-      console.error(error)
-      alert("Có lỗi khi gửi yêu cầu.")
+      setErrors({})
+    } catch (err) {
+      console.error(err)
+      setErrors({ general: "Có lỗi khi gửi yêu cầu." })
     }
   }
 
@@ -112,7 +168,12 @@ export default function CreateEventPage() {
           <div className="card-base p-8">
             <h1 className="text-3xl font-bold mb-8">Tạo sự kiện mới</h1>
 
+            {errors.general && (
+              <div className="text-red-600 mb-4 font-semibold">{errors.general}</div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Title */}
               <div>
                 <label className="block text-sm font-medium mb-2">Tên sự kiện</label>
                 <input
@@ -120,77 +181,85 @@ export default function CreateEventPage() {
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  required
                   className="input-base"
                   placeholder="Nhập tên sự kiện"
                 />
+                {errors.title && <p className="text-red-600 text-sm mt-1">{errors.title}</p>}
               </div>
 
+              {/* Description */}
               <div>
                 <label className="block text-sm font-medium mb-2">Mô tả</label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  required
                   rows={4}
                   className="input-base"
                   placeholder="Mô tả chi tiết về sự kiện"
                 />
+                {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
               </div>
-              
-              <label className="block text-sm font-bold mb-2">Thời gian bắt đầu</label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Ngày</label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    required
-                    className="input-base"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-3">Giờ</label>
-                  <input
-                    type="time"
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleChange}
-                    required
-                    className="input-base"
-                  />
-                </div>
-              </div>
-              
-              <label className="block text-sm font-bold mb-3">Thời gian kết thúc</label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Ngày</label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    required
-                    className="input-base"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Giờ</label>
-                  <input
-                    type="time"
-                    name="endTime"
-                    value={formData.endTime}
-                    onChange={handleChange}
-                    required
-                    className="input-base"
-                  />
+
+              {/* Start Date/Time */}
+              <div>
+                <label className="block text-sm font-bold mb-2">Thời gian bắt đầu</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Ngày</label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={formData.startDate}
+                      onChange={handleChange}
+                      className="input-base"
+                    />
+                    {errors.startDate && <p className="text-red-600 text-sm mt-1">{errors.startDate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Giờ</label>
+                    <input
+                      type="time"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleChange}
+                      className="input-base"
+                    />
+                    {errors.startTime && <p className="text-red-600 text-sm mt-1">{errors.startTime}</p>}
+                  </div>
                 </div>
               </div>
 
+              {/* End Date/Time */}
+              <div>
+                <label className="block text-sm font-bold mb-2">Thời gian kết thúc</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Ngày</label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={formData.endDate}
+                      onChange={handleChange}
+                      className="input-base"
+                    />
+                    {errors.endDate && <p className="text-red-600 text-sm mt-1">{errors.endDate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Giờ</label>
+                    <input
+                      type="time"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleChange}
+                      className="input-base"
+                    />
+                    {errors.endTime && <p className="text-red-600 text-sm mt-1">{errors.endTime}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
               <div>
                 <label className="block text-sm font-medium mb-2">Địa điểm</label>
                 <input
@@ -198,12 +267,13 @@ export default function CreateEventPage() {
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  required
                   className="input-base"
                   placeholder="Nhập địa điểm sự kiện"
                 />
+                {errors.location && <p className="text-red-600 text-sm mt-1">{errors.location}</p>}
               </div>
 
+              {/* Category + Max Volunteers */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Danh mục</label>
@@ -221,13 +291,14 @@ export default function CreateEventPage() {
                     name="maxVolunteers"
                     value={formData.maxVolunteers}
                     onChange={handleChange}
-                    required
                     className="input-base"
                     placeholder="50"
                   />
+                  {errors.maxVolunteers && <p className="text-red-600 text-sm mt-1">{errors.maxVolunteers}</p>}
                 </div>
               </div>
 
+              {/* Image */}
               <div>
                 <label className="block text-sm font-medium mb-2">Hình ảnh</label>
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-neutral-50 transition-colors cursor-pointer">
