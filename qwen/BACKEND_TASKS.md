@@ -27,7 +27,6 @@
 - [ ] Implement refresh token functionality (POST /api/auth/refresh)
 - [ ] Implement logout endpoint (POST /api/auth/logout)
 - [ ] Create password hashing with bcrypt
-- [ ] Add input validation for auth endpoints
 - [ ] Implement role-based access control (RBAC)
 
 ## Milestone 3: User Management

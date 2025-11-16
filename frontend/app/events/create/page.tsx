@@ -12,8 +12,10 @@ export default function CreateEventPage() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    date: "",
-    time: "",
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: "",
     location: "",
     category: "environment",
     maxVolunteers: "",
@@ -31,20 +33,67 @@ export default function CreateEventPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert("Sự kiện đã được tạo và gửi duyệt!")
-    // Reset form
-    setFormData({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      location: "",
-      category: "environment",
-      maxVolunteers: "",
-      image: null,
-    })
+
+    const token = localStorage.getItem("accessToken")
+    if (!token) {
+      alert("Bạn cần đăng nhập.")
+      return
+    }
+
+    // Ghép date + time thành datetime ISO
+    const startDate = `${formData.startDate}T${formData.startTime}:00.000Z`
+    const endDate = `${formData.endDate}T${formData.endTime}:00.000Z` 
+    // ❗️Nếu bạn cho phép ngày kết thúc khác ngày bắt đầu thì dùng form khác
+
+    try {
+      const res = await fetch("http://localhost:5000/api/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          startDate,
+          endDate,
+          location: formData.location,
+          category: formData.category,
+          maxParticipants: Number(formData.maxVolunteers)
+        })
+      });
+
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        console.error(data)
+        alert("Lỗi: " + (data.errors || "Không thể tạo sự kiện"))
+        return
+      }
+
+      alert("Tạo sự kiện thành công và đã gửi duyệt!")
+      
+      // Reset form
+      setFormData({
+        title: "",
+        description: "",
+        startDate: "",
+        startTime: "",
+        endDate: "",
+        endTime: "",
+        location: "",
+        category: "environment",
+        maxVolunteers: "",
+        image: null,
+      })
+
+    } catch (error) {
+      console.error(error)
+      alert("Có lỗi khi gửi yêu cầu.")
+    }
   }
 
   return (
@@ -89,14 +138,41 @@ export default function CreateEventPage() {
                   placeholder="Mô tả chi tiết về sự kiện"
                 />
               </div>
-
+              
+              <label className="block text-sm font-bold mb-2">Thời gian bắt đầu</label>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Ngày</label>
                   <input
                     type="date"
-                    name="date"
-                    value={formData.date}
+                    name="startDate"
+                    value={formData.startDate}
+                    onChange={handleChange}
+                    required
+                    className="input-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-3">Giờ</label>
+                  <input
+                    type="time"
+                    name="startTime"
+                    value={formData.startTime}
+                    onChange={handleChange}
+                    required
+                    className="input-base"
+                  />
+                </div>
+              </div>
+              
+              <label className="block text-sm font-bold mb-3">Thời gian kết thúc</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Ngày</label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={formData.endDate}
                     onChange={handleChange}
                     required
                     className="input-base"
@@ -106,8 +182,8 @@ export default function CreateEventPage() {
                   <label className="block text-sm font-medium mb-2">Giờ</label>
                   <input
                     type="time"
-                    name="time"
-                    value={formData.time}
+                    name="endTime"
+                    value={formData.endTime}
                     onChange={handleChange}
                     required
                     className="input-base"
