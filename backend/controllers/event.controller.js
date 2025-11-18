@@ -1,5 +1,6 @@
 import { PrismaClient } from '../generated/prisma/index.js';
 import { z } from 'zod';
+import { ZodError } from "zod";
 import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
@@ -18,7 +19,7 @@ const eventSchema = z.object({
   endDate: z.string(),
   location: z.string().min(3),
   category: z.string(),
-  maxParticipants: z.string().transform(Number),
+  maxParticipants: z.number(),
   thumbnailUrl: z.string().optional(),
 });
 
@@ -92,9 +93,16 @@ export const createEvent = async (req, res) => {
 
     res.status(201).json(event);
   } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create event' });
+    
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: err.issues,   // 🔥 đúng thuộc tính
+      });
+    }
+
+    console.error("Server error:", err);
+    return res.status(500).json({ message: "Failed to create event" });
   }
 };
 
