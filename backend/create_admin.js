@@ -5,7 +5,22 @@ async function createAdminUser() {
   try {
     const email = 'admin@example.com'; // Change this to the desired admin email
     const password = 'AdminPassword123!'; // Change this to a secure password
-    
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email }
+    });
+
+    if (existingUser) {
+      console.log(`Admin user with email ${email} already exists!`);
+      console.log('Email:', existingUser.email);
+      console.log('ID:', existingUser.id);
+      console.log('Role:', existingUser.role);
+      console.log('First Name:', existingUser.firstName);
+      console.log('Last Name:', existingUser.lastName);
+      return;
+    }
+
     // Hash the password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);

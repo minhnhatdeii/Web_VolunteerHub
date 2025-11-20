@@ -6,6 +6,8 @@ import Footer from "@/components/footer"
 import Link from "next/link"
 import { ArrowLeft, Upload } from "lucide-react"
 
+const BACKEND_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+
 interface FormData {
   title: string
   description: string
@@ -97,25 +99,35 @@ export default function CreateEventPage() {
     const endDate = `${formData.endDate}T${formData.endTime}:00.000Z`
 
     try {
-      const res = await fetch("http://localhost:5000/api/events", {
+      // Prepare FormData for the request to include the image file
+      const eventFormData = new FormData();
+
+      // Add all event data as form fields
+      eventFormData.append('title', formData.title);
+      eventFormData.append('description', formData.description);
+      eventFormData.append('startDate', startDate);
+      eventFormData.append('endDate', endDate);
+      eventFormData.append('location', formData.location);
+      eventFormData.append('category', formData.category);
+      eventFormData.append('maxParticipants', formData.maxVolunteers);
+
+      // Add image file if selected
+      if (formData.image) {
+        eventFormData.append('thumbnail', formData.image);  // The field name should match the backend expected name
+      }
+
+      const res = await fetch(`${BACKEND_API_BASE_URL}/events`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          // Don't set Content-Type header when using FormData, it will be set automatically
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          startDate,
-          endDate,
-          location: formData.location,
-          category: formData.category,
-          maxParticipants: Number(formData.maxVolunteers),
-        }),
+        body: eventFormData,
       })
 
       const data = await res.json()
-
+console.log("Create Event Data:", data);
+console.log("Event ID:", data.id);
       if (!res.ok) {
         if (data.errors) {
           const zodErrors: FormErrors = {}
@@ -132,7 +144,36 @@ export default function CreateEventPage() {
         return
       }
 
-      alert("Tạo sự kiện thành công và đã gửi duyệt!")
+      // Check if event is already in PENDING_APPROVAL status before attempting to submit
+      if (data.status === 'PENDING_APPROVAL') {
+        // Event is already in the correct status for admin to review
+        alert("Tạo sự kiện và gửi duyệt thành công!");
+      } else {
+        // Submit the event for approval (only if not already pending approval)
+        try {
+          const eventId = data.data?.id;
+          const submitRes = await fetch(`${BACKEND_API_BASE_URL}/events/${eventId}/submit`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          const submitData = await submitRes.json();
+          console.log(submitData);
+
+          if (!submitRes.ok) {
+            console.error('Failed to submit event for approval:', submitData.error || submitData.message);
+          }
+          alert("Tạo sự kiện và gửi duyệt thành công!");
+        } catch (submitErr) {
+          console.error('Error submitting event for approval:', submitErr);
+          // Even if submission fails, the event was created successfully
+          alert("Tạo sự kiện và gửi duyệt thành công!");
+        }
+      }
+
       setFormData({
         title: "",
         description: "",

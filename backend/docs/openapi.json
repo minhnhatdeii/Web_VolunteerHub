@@ -275,9 +275,22 @@
         ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EventCreateRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/EventCreateRequest" }
+            }
+          }
         },
-        "responses": { "200": { "description": "Updated event", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+        "responses": {
+          "200": {
+            "description": "Updated event",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Event" }
+              }
+            }
+          }
+        }
       },
       "delete": {
         "summary": "Delete event (owner/admin only)",
@@ -313,9 +326,142 @@
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
-          "content": { "multipart/form-data": { "schema": { "$ref": "#/components/schemas/ThumbnailUploadRequest" } } }
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/ThumbnailUploadRequest" }
+            }
+          }
         },
-        "responses": { "200": { "description": "Uploaded", "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string" } } } } } } }
+        "responses": {
+          "200": {
+            "description": "Uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events": {
+      "get": {
+        "summary": "List events for admin (with optional status filter)",
+        "description": "Admin only endpoint to view all events, with optional status filter (e.g., ?status=PENDING_APPROVAL)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "description": "Filter by event status", "schema": { "type": "string" } },
+          { "name": "q", "in": "query", "description": "Search query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "description": "Page number for pagination", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "description": "Number of results per page", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": { "type": "integer" },
+                        "limit": { "type": "integer" },
+                        "total": { "type": "integer" },
+                        "pages": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/approve": {
+      "post": {
+        "summary": "Approve an event",
+        "description": "Admin only endpoint to approve an event pending approval",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": { "type": "string", "description": "Optional reason for approval" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event approved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "event": { "$ref": "#/components/schemas/Event" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/reject": {
+      "post": {
+        "summary": "Reject an event",
+        "description": "Admin only endpoint to reject an event pending approval",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": { "type": "string", "description": "Required reason for rejection" }
+                },
+                "required": ["reason"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event rejected successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "event": { "$ref": "#/components/schemas/Event" }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

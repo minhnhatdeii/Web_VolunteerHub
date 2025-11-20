@@ -98,21 +98,6 @@ export default function LoginPage() {
               Đăng ký ngay
             </Link>
           </p>
-
-          <div className="mt-8 pt-8 border-t border-border">
-            <p className="text-xs text-muted text-center mb-4">Tài khoản demo:</p>
-            <div className="space-y-2 text-xs">
-              <p>
-                <strong>Volunteer:</strong> volunteer@test.com / password
-              </p>
-              <p>
-                <strong>Manager:</strong> manager@test.com / password
-              </p>
-              <p>
-                <strong>Admin:</strong> admin@test.com / password
-              </p>
-            </div>
-          </div>
         </div>
       </main>
       <Footer />

@@ -1,26 +1,34 @@
-# JWT Authentication System
+# Supabase Authentication System
 
-This document explains how to use the JWT authentication system implemented in the VolunteerHub backend.
+This document explains how to use the Supabase authentication system implemented in the VolunteerHub backend.
 
 ## Components
 
 The authentication system consists of:
 
-1. **JWT Utilities** (`utils/jwt.js`): Handles JWT creation and verification
-2. **Auth Middleware** (`middleware/auth.js`): Contains authentication and authorization functions
-3. **Auth Routes** (`routes/auth.js`): Handles registration, login, refresh, and logout
-4. **User Routes** (`routes/users.js`): Protected routes for user management
+1. **Supabase Client Configuration** (`config/supabase.js`): Handles Supabase client initialization
+2. **Supabase Auth Helper** (`helpers/supabase-auth.js`): Handles Supabase authentication logic
+3. **Auth Middleware** (`middleware/auth.js`): Contains authentication and authorization functions
+4. **Auth Routes** (`routes/auth.js`): Handles registration, login, refresh, and logout
+5. **User Routes** (`routes/users.js`): Protected routes for user management
 
 ## Environment Variables
 
-Make sure your `.env` file contains these JWT-related variables:
+Make sure your `.env` file contains these Supabase-related variables:
 
 ```
-JWT_SECRET="your-jwt-secret-key-here"
-JWT_EXPIRES_IN="24h"
-REFRESH_TOKEN_SECRET="your-refresh-token-secret"
-REFRESH_TOKEN_EXPIRES_IN="7d"
+SUPABASE_URL="your-supabase-project-url"
+SUPABASE_ANON_KEY="your-supabase-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
 ```
+
+## Important: Supabase Email Validation Configuration
+
+By default, Supabase may have email validation rules that restrict which email addresses can be registered. If you encounter an "Email address is invalid" error:
+
+1. **Check your Supabase dashboard**: Go to Authentication > Settings in your Supabase project
+2. **Adjust email settings**: You may need to update the allowed email domains or validation rules
+3. **For testing**: Use real email addresses or temporary email services that pass validation
 
 ## Available Endpoints
 
@@ -47,8 +55,8 @@ REFRESH_TOKEN_EXPIRES_IN="7d"
 curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "user@example.com",
-    "password": "securepassword",
+    "email": "your-real-email@example.com",
+    "password": "securepassword123!",
     "firstName": "John",
     "lastName": "Doe"
   }'
@@ -60,8 +68,8 @@ curl -X POST http://localhost:5000/api/auth/register \
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "user@example.com",
-    "password": "securepassword"
+    "email": "your-real-email@example.com",
+    "password": "securepassword123!"
   }'
 ```
 
@@ -116,16 +124,14 @@ router.put('/me', authenticateToken, requireOwnResource(), (req, res) => {
 
 ## Token Management
 
-- Access tokens expire after the duration specified in `JWT_EXPIRES_IN` (default: 24h)
-- Refresh tokens expire after the duration specified in `REFRESH_TOKEN_EXPIRES_IN` (default: 7d)
-- When an access token expires, use the refresh endpoint to get a new one
-- Refresh tokens should be stored securely on the client-side (e.g., in httpOnly cookies or secure local storage)
+- Access tokens are managed by Supabase and automatically expire
+- Use the refresh endpoint to get a new token when the current one expires
+- Tokens should be stored securely on the client-side (e.g., in httpOnly cookies or secure local storage)
 
 ## Security Considerations
 
-- Always hash passwords using bcrypt
-- Store JWT secrets securely and never expose them in client-side code
+- Supabase handles password hashing and storage automatically
 - Use HTTPS in production to protect tokens in transit
 - Validate and sanitize all inputs
 - Consider implementing rate limiting for authentication endpoints
-- For production, implement refresh token blacklisting for better security
+- Use Supabase's built-in security features and policies

@@ -1,0 +1,20 @@
+        "responses": {
+          "200": {
+            "description": "Event rejected successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "event": { "$ref": "#/components/schemas/Event" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

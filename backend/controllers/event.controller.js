@@ -11,16 +11,59 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Validate that required environment variables are present
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('ERROR: Missing Supabase configuration. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
+}
+
 // Validation schema
 const eventSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().optional(),
-  startDate: z.string(),
-  endDate: z.string(),
-  location: z.string().min(3),
-  category: z.string(),
-  maxParticipants: z.number(),
-  thumbnailUrl: z.string().optional(),
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  description: z.string().max(1000, 'Description cannot exceed 1000 characters').optional(),
+  startDate: z.string().datetime({ message: 'Start date must be a valid datetime' }),
+  endDate: z.string().datetime({ message: 'End date must be a valid datetime' }),
+  location: z.string().min(3, 'Location must be at least 3 characters'),
+  category: z.string().min(1, 'Category is required'),
+  maxParticipants: z.number().min(1, 'Max participants must be at least 1'),
+  thumbnailUrl: z.string().url('Thumbnail URL must be a valid URL').optional().or(z.literal('')),
+}).refine((data) => {
+  // Validate that endDate is after startDate
+  if (data.startDate && data.endDate) {
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    if (end <= start) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "End date must be after start date",
+  path: ["endDate"], // path of error
+});
+
+// Schema for creating events (without thumbnailUrl validation since it's handled via file upload)
+const createEventSchema = z.object({
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  description: z.string().max(1000, 'Description cannot exceed 1000 characters').optional(),
+  startDate: z.string().datetime({ message: 'Start date must be a valid datetime' }),
+  endDate: z.string().datetime({ message: 'End date must be a valid datetime' }),
+  location: z.string().min(3, 'Location must be at least 3 characters'),
+  category: z.string().min(1, 'Category is required'),
+  maxParticipants: z.number().min(1, 'Max participants must be at least 1'),
+  thumbnailUrl: z.string().url('Thumbnail URL must be a valid URL').optional().or(z.literal('')),
+}).refine((data) => {
+  // Validate that endDate is after startDate
+  if (data.startDate && data.endDate) {
+    const start = new Date(data.startDate);
+    const end = new Date(data.endDate);
+    if (end <= start) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "End date must be after start date",
+  path: ["endDate"], // path of error
 });
 
 /* -----------------------------------------------------------
@@ -28,16 +71,26 @@ const eventSchema = z.object({
 ------------------------------------------------------------*/
 export const getEvents = async (req, res) => {
   try {
-    const { status, category, location, q } = req.query;
+    const { status, category, location, q, search } = req.query; // Added search parameter
     const where = {};
 
-    if (status) where.status = status;
+    // For public users, don't return draft or rejected events by default
+    // This ensures consistency with getEventById access control
+    // Only allow explicit filtering for DRAFT/REJECTED if provided in status parameter
+    if (!status) {
+      where.status = { notIn: ['DRAFT', 'REJECTED'] };
+    } else {
+      where.status = status;
+    }
+
     if (category) where.category = category;
     if (location) where.location = { contains: location, mode: 'insensitive' };
-    if (q)
+    // Use 'q' if provided, otherwise fall back to 'search' parameter
+    const searchTerm = q || search;
+    if (searchTerm)
       where.OR = [
-        { title: { contains: q, mode: 'insensitive' } },
-        { description: { contains: q, mode: 'insensitive' } },
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
       ];
 
     const events = await prisma.event.findMany({
@@ -46,10 +99,18 @@ export const getEvents = async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(events);
+    res.json({
+      success: true,
+      data: events,
+      message: null
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch events' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to fetch events'
+    });
   }
 };
 
@@ -58,6 +119,9 @@ export const getEvents = async (req, res) => {
 ------------------------------------------------------------*/
 export const getEventById = async (req, res) => {
   try {
+    // Check if user is authenticated
+    const userId = req.user?.id; // This might be undefined if not authenticated
+
     const event = await prisma.event.findUnique({
       where: { id: req.params.id },
       include: {
@@ -66,12 +130,41 @@ export const getEventById = async (req, res) => {
       },
     });
 
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Event not found'
+      });
+    }
 
-    res.json(event);
+    // For public users (unauthenticated) viewing events:
+    // Do not return draft or rejected events
+    // But if the user is authenticated and is the event creator, allow them to see their own events regardless of status
+    if (['DRAFT', 'REJECTED'].includes(event.status)) {
+      if (!userId || event.creatorId !== userId) {
+        // User is not authenticated or is not the event creator
+        // Only allow access to non-draft and non-rejected events
+        return res.status(404).json({
+          success: false,
+          data: null,
+          message: 'Event not found'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: event,
+      message: null
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to get event details' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to get event details'
+    });
   }
 };
 
@@ -80,7 +173,54 @@ export const getEventById = async (req, res) => {
 ------------------------------------------------------------*/
 export const createEvent = async (req, res) => {
   try {
-    const parsed = eventSchema.parse(req.body);
+    // Check if there's a file upload in the request
+    const file = req.file;
+    let thumbnailUrl = null;
+
+    // If there's an uploaded file, process it and upload to Supabase
+    if (file) {
+      const filePath = `events/${Date.now()}-${file.originalname}`;
+      const { data, error } = await supabase.storage
+        .from('event-thumbnails')
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false // Don't overwrite existing files
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        return res.status(500).json({
+          success: false,
+          data: null,
+          message: 'Failed to upload image to storage'
+        });
+      }
+
+      const publicUrlResult = supabase.storage
+        .from('event-thumbnails')
+        .getPublicUrl(data.path).data;
+
+      if (!publicUrlResult || !publicUrlResult.publicUrl) {
+        console.error('Failed to get public URL for uploaded image');
+        return res.status(500).json({
+          success: false,
+          data: null,
+          message: 'Failed to get public URL for image'
+        });
+      }
+
+      thumbnailUrl = publicUrlResult.publicUrl;
+    }
+
+    // Parse the request body for event data, excluding thumbnailUrl to prevent conflicts with file upload
+    // Need to handle maxParticipants as it comes as a string from FormData
+    const parsed = eventSchema.omit({ thumbnailUrl: true }).parse({
+      ...req.body,
+      maxParticipants: parseInt(req.body.maxParticipants, 10) || 0
+    });
+
+    // Prioritize the uploaded file URL over any thumbnailUrl in the request body
+    const finalThumbnailUrl = thumbnailUrl || null;
 
     const event = await prisma.event.create({
       data: {
@@ -88,21 +228,32 @@ export const createEvent = async (req, res) => {
         startDate: new Date(parsed.startDate),
         endDate: new Date(parsed.endDate),
         creatorId: req.user.id, // creator là chính manager
+        status: 'PENDING_APPROVAL', // Set to PENDING_APPROVAL when created by manager
+        thumbnailUrl: finalThumbnailUrl
       },
     });
 
-    res.status(201).json(event);
+    res.status(201).json({
+      success: true,
+      data: event,
+      message: null
+    });
   } catch (err) {
-    
+
     if (err instanceof ZodError) {
       return res.status(400).json({
-        message: "Validation failed",
-        errors: err.issues,   // 🔥 đúng thuộc tính
+        success: false,
+        data: null,
+        message: "Validation failed"
       });
     }
 
     console.error("Server error:", err);
-    return res.status(500).json({ message: "Failed to create event" });
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to create event"
+    });
   }
 };
 
@@ -113,20 +264,112 @@ export const updateEvent = async (req, res) => {
   try {
     const id = req.params.id;
     const event = await prisma.event.findUnique({ where: { id } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
-
-    if (event.creatorId !== req.user.id) {
-      return res.status(403).json({ error: 'Only the event owner can update' });
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Event not found'
+      });
     }
 
-    const parsed = eventSchema.partial().parse(req.body);
-    const updated = await prisma.event.update({ where: { id }, data: parsed });
+    if (event.creatorId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        message: 'Only the event owner can update'
+      });
+    }
 
-    res.json(updated);
+    // Prevent editing if the event has already been approved or rejected
+    if (event.status === 'APPROVED' || event.status === 'REJECTED') {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Cannot edit event once it has been approved or rejected'
+      });
+    }
+
+    // Check if there's a file upload in the request
+    const file = req.file;
+    let thumbnailUrl = null;
+
+    // If there's an uploaded file, process it and upload to Supabase
+    if (file) {
+      const filePath = `events/${Date.now()}-${file.originalname}`;
+      const { data, error } = await supabase.storage
+        .from('event-thumbnails')
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false // Don't overwrite existing files
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        return res.status(500).json({
+          success: false,
+          data: null,
+          message: 'Failed to upload image to storage'
+        });
+      }
+
+      const publicUrlResult = supabase.storage
+        .from('event-thumbnails')
+        .getPublicUrl(data.path).data;
+
+      if (!publicUrlResult || !publicUrlResult.publicUrl) {
+        console.error('Failed to get public URL for uploaded image');
+        return res.status(500).json({
+          success: false,
+          data: null,
+          message: 'Failed to get public URL for image'
+        });
+      }
+
+      thumbnailUrl = publicUrlResult.publicUrl;
+    }
+
+    // Parse the request body for event data, excluding thumbnailUrl to prevent conflicts with file upload
+    // Need to handle maxParticipants as it comes as a string from FormData
+    const parsed = eventSchema.partial().omit({ thumbnailUrl: true }).parse({
+      ...req.body,
+      maxParticipants: req.body.maxParticipants ? parseInt(req.body.maxParticipants, 10) || 0 : undefined
+    });
+
+    // Prepare the update data
+    const updateData = {
+      ...parsed,
+    };
+
+    // If a new file was uploaded, update the thumbnail URL
+    if (thumbnailUrl !== null) {
+      updateData.thumbnailUrl = thumbnailUrl;
+    }
+    // If no file was uploaded but thumbnailUrl was provided in the request body, use that
+    else if (req.body.thumbnailUrl !== undefined) {
+      updateData.thumbnailUrl = req.body.thumbnailUrl;
+    }
+
+    const updated = await prisma.event.update({ where: { id }, data: updateData });
+
+    res.json({
+      success: true,
+      data: updated,
+      message: null
+    });
   } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Validation failed'
+      });
+    }
     console.error(err);
-    res.status(500).json({ error: 'Failed to update event' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to update event'
+    });
   }
 };
 
@@ -137,17 +380,35 @@ export const deleteEvent = async (req, res) => {
   try {
     const id = req.params.id;
     const event = await prisma.event.findUnique({ where: { id } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Event not found'
+      });
+    }
 
     if (event.creatorId !== req.user.id && req.user.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Only the event owner or admin can delete' });
+      return res.status(403).json({
+        success: false,
+        data: null,
+        message: 'Only the event owner or admin can delete'
+      });
     }
 
     await prisma.event.delete({ where: { id } });
-    res.json({ message: 'Event deleted successfully' });
+    res.json({
+      success: true,
+      data: null,
+      message: 'Event deleted successfully'
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to delete event' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to delete event'
+    });
   }
 };
 
@@ -158,25 +419,58 @@ export const submitEventForApproval = async (req, res) => {
   try {
     const id = req.params.id;
     const event = await prisma.event.findUnique({ where: { id } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Event not found'
+      });
+    }
 
     if (event.creatorId !== req.user.id) {
-      return res.status(403).json({ error: 'Only the event owner can submit' });
+      return res.status(403).json({
+        success: false,
+        data: null,
+        message: 'Only the event owner can submit'
+      });
     }
 
+    // If the event is already in pending approval status, just return success
+    if (event.status === 'PENDING_APPROVAL') {
+      return res.json({
+        success: true,
+        data: event,
+        message: 'Event is already pending approval'
+      });
+    }
+
+    // Only allow submitting events that are currently in draft status
     if (event.status !== 'DRAFT') {
-      return res.status(400).json({ error: 'Only draft events can be submitted' });
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Event must be in draft status to submit for approval'
+      });
     }
 
-    const updated = await prisma.event.update({
+    // Update the event status to pending approval
+    const updatedEvent = await prisma.event.update({
       where: { id },
-      data: { status: 'PENDING_APPROVAL' },
+      data: { status: 'PENDING_APPROVAL' }
     });
 
-    res.json({ message: 'Event submitted for approval', event: updated });
+    res.json({
+      success: true,
+      data: updatedEvent,
+      message: 'Event submitted for approval'
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to submit event' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to submit event'
+    });
   }
 };
 
@@ -187,10 +481,20 @@ export const approveEvent = async (req, res) => {
   try {
     const id = req.params.id;
     const event = await prisma.event.findUnique({ where: { id } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Event not found'
+      });
+    }
 
     if (event.status !== 'PENDING_APPROVAL') {
-      return res.status(400).json({ error: 'Only pending events can be approved' });
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Only pending events can be approved'
+      });
     }
 
     const updated = await prisma.event.update({
@@ -198,10 +502,18 @@ export const approveEvent = async (req, res) => {
       data: { status: 'APPROVED' },
     });
 
-    res.json({ message: 'Event approved', event: updated });
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Event approved'
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to approve event' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to approve event'
+    });
   }
 };
 
@@ -212,17 +524,31 @@ export const getManagerEvents = async (req, res) => {
   try {
     const id = req.params.id;
     const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'User not found'
+      });
+    }
 
     const events = await prisma.event.findMany({
       where: { creatorId: id },
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ manager: user, events });
+    res.json({
+      success: true,
+      data: { manager: user, events },
+      message: null
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to load manager events' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to load manager events'
+    });
   }
 };
 
@@ -232,30 +558,81 @@ export const getManagerEvents = async (req, res) => {
 export const uploadEventThumbnail = async (req, res) => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'No file uploaded'
+      });
+    }
 
     const event = await prisma.event.findUnique({ where: { id: req.params.id } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        message: 'Event not found'
+      });
+    }
 
     if (event.creatorId !== req.user.id) {
-      return res.status(403).json({ error: 'Only owner can upload thumbnail' });
+      return res.status(403).json({
+        success: false,
+        data: null,
+        message: 'Only owner can upload thumbnail'
+      });
     }
 
     const filePath = `events/${Date.now()}-${file.originalname}`;
     const { data, error } = await supabase.storage
       .from('event-thumbnails')
-      .upload(filePath, file.buffer, { contentType: file.mimetype });
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false // Don't overwrite existing files
+      });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase upload error:', error);
+      return res.status(500).json({
+        success: false,
+        data: null,
+        message: 'Failed to upload image to storage'
+      });
+    }
 
-    const publicUrl = supabase.storage
+    const publicUrlResult = supabase.storage
       .from('event-thumbnails')
-      .getPublicUrl(data.path).data.publicUrl;
+      .getPublicUrl(data.path).data;
 
-    res.json({ url: publicUrl });
+    if (!publicUrlResult || !publicUrlResult.publicUrl) {
+      console.error('Failed to get public URL for uploaded image');
+      return res.status(500).json({
+        success: false,
+        data: null,
+        message: 'Failed to get public URL for image'
+      });
+    }
+
+    const publicUrl = publicUrlResult.publicUrl;
+
+    // Update the event record with the thumbnail URL
+    const updatedEvent = await prisma.event.update({
+      where: { id: req.params.id },
+      data: { thumbnailUrl: publicUrl }
+    });
+
+    res.json({
+      success: true,
+      data: { url: publicUrl, event: updatedEvent },
+      message: null
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Thumbnail upload failed' });
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Thumbnail upload failed'
+    });
   }
 };
 

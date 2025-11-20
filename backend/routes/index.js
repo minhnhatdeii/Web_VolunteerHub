@@ -7,6 +7,8 @@ import userRoutes from './users.js';
 import eventRoutes from './events.js';
 import registrationRoutes from './registrations.js';
 import exampleRoutes from './examples.js';
+import adminRoutes from './admin.js';
+import managerRoutes from './managers.js';
 
 // Root route
 router.get('/', (req, res) => {
@@ -34,5 +36,7 @@ router.use('/api/users', userRoutes);
 router.use('/api/events', eventRoutes);
 router.use('/api/registrations', registrationRoutes);
 router.use('/api/examples', exampleRoutes);
+router.use('/api/admin', adminRoutes);
+router.use('/api/managers', managerRoutes);
 
 export default router;

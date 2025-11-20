@@ -1,6 +1,6 @@
 // This file helps import the Prisma client from the generated directory
-const { PrismaClient } = require('./generated/prisma');
+import { PrismaClient } from './generated/prisma/index.js';
 
 const prisma = new PrismaClient();
 
-module.exports = { prisma };
+export { prisma };

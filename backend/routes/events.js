@@ -1,9 +1,26 @@
 import express from "express";
+import multer from 'multer';
 import EventController from "../controllers/event.controller.js";
-import { 
-  authenticateToken, 
-  requireRole 
+import {
+  authenticateToken,
+  requireRole
 } from "../middleware/auth.js";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(), // Store files in memory as buffers
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -18,6 +35,23 @@ router.post(
   "/",
   authenticateToken,
   requireRole("MANAGER"),
+  (req, res, next) => {
+    // Handle multer errors for image upload
+    upload.single('thumbnail')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+        }
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        if (err.message === 'Only image files are allowed!') {
+          return res.status(400).json({ error: err.message });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   EventController.createEvent
 );
 
@@ -26,6 +60,23 @@ router.put(
   "/:id",
   authenticateToken,
   requireRole("MANAGER"),
+  (req, res, next) => {
+    // Handle multer errors for image upload
+    upload.single('thumbnail')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+        }
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        if (err.message === 'Only image files are allowed!') {
+          return res.status(400).json({ error: err.message });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   EventController.updateEvent
 );
 
@@ -45,25 +96,32 @@ router.post(
   EventController.submitEventForApproval
 );
 
-// 7. POST /api/events/:id/approve (approve event)
-router.post(
-  "/:id/approve",
-  authenticateToken,
-  requireRole("ADMIN"),
-  EventController.approveEvent
-);
 
-// 8. GET /api/managers/:id/events (list manager’s events)
-router.get(
-  "/:id/events",
-  EventController.getManagerEvents
-);
+// This route doesn't belong in events.js, it should be in a separate managers route file
+// Commenting out for now - will be handled separately
 
 // 9. Upload thumbnail → Supabase
 router.post(
   "/:id/upload-thumbnail",
   authenticateToken,
   requireRole("MANAGER"),
+  (req, res, next) => {
+    // Handle multer errors
+    upload.single('file')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+        }
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        if (err.message === 'Only image files are allowed!') {
+          return res.status(400).json({ error: err.message });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   EventController.uploadEventThumbnail
 );
 

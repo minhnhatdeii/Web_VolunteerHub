@@ -21,7 +21,7 @@ export async function createEvent(eventData) {
     data: {
       ...eventData,
       creatorId: eventData.creatorId,
-      status: 'DRAFT' // Events default to draft status
+      status: 'PENDING_APPROVAL' // Events default to pending approval status when created by manager
     },
     include: {
       creator: {
@@ -204,16 +204,16 @@ export async function submitEventForApproval(eventId, userId, note) {
   
   if (!event || event.creatorId !== userId) return null;
   
-  // Only allow submission if the event is in draft status
-  if (event.status !== 'DRAFT') {
-    throw new Error('Event must be in draft status to submit for approval');
+  // Only allow submission if the event is in pending approval status
+  if (event.status !== 'PENDING_APPROVAL') {
+    throw new Error('Event must be in pending approval status to submit for approval');
   }
-  
+
   const updatedEvent = await prisma.event.update({
     where: { id: eventId },
     data: {
-      status: 'SUBMITTED',
       submissionNote: note
+      // Status remains PENDING_APPROVAL since it's already in that state
     },
     include: {
       creator: {

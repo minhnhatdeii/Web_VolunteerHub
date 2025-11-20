@@ -1,9 +1,11 @@
+import { supabase } from '../config/supabase.js';
+import { findByExternalId, findById } from '../repositories/user.repo.js';
 import { verifyAccessToken } from '../utils/jwt.js';
-import prisma from '../db.js';
 
 /**
- * Middleware to authenticate JWT token
- * Extracts token from Authorization header and verifies it
+ * Middleware to authenticate token
+ * In production, verifies token with Supabase
+ * In test environment, also accepts locally generated JWT tokens
  */
 export const authenticateToken = async (req, res, next) => {
   // Get token from Authorization header
@@ -11,49 +13,90 @@ export const authenticateToken = async (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ 
-      error: 'Access token is required' 
+    return res.status(401).json({
+      error: 'Access token is required'
     });
   }
 
   try {
-    // Verify the token
-    const decoded = verifyAccessToken(token);
-    if (!decoded) {
-      return res.status(403).json({ 
-        error: 'Invalid or expired token' 
+    // In test environment, try local JWT tokens first
+    if (process.env.NODE_ENV === 'test') {
+      const decodedToken = verifyAccessToken(token);
+      if (decodedToken) {
+        // This is a local JWT token (for testing)
+        // If the token contains externalId, try to find by externalId first
+        let userProfile = null;
+        if (decodedToken.externalId) {
+          userProfile = await findByExternalId(decodedToken.externalId);
+        }
+
+        // If not found by externalId or externalId doesn't exist, try by local id
+        if (!userProfile && decodedToken.userId) {
+          userProfile = await findById(decodedToken.userId);
+        }
+
+        if (!userProfile) {
+          return res.status(401).json({
+            error: 'User profile not found in the system'
+          });
+        }
+
+        if (userProfile.isLocked) {
+          return res.status(401).json({
+            error: 'Account is locked'
+          });
+        }
+
+        // Add user info to request object
+        req.user = {
+          id: userProfile.id,
+          externalId: decodedToken.externalId || userProfile.id,
+          email: userProfile.email,
+          role: userProfile.role
+        };
+
+        next();
+        return;
+      }
+    }
+
+    // For production or if JWT verification failed in test, try Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(403).json({
+        error: 'Invalid or expired token'
       });
     }
 
-    // Find user in database to ensure they exist and are not locked
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
-    });
+    // Find user in our database to ensure they exist and get additional info
+    const userProfile = await findByExternalId(user.id);
 
-    if (!user) {
-      return res.status(401).json({ 
-        error: 'User not found' 
+    if (!userProfile) {
+      return res.status(401).json({
+        error: 'User profile not found in the system'
       });
     }
 
-    if (user.isLocked) {
-      return res.status(401).json({ 
-        error: 'Account is locked' 
+    if (userProfile.isLocked) {
+      return res.status(401).json({
+        error: 'Account is locked'
       });
     }
 
     // Add user info to request object
     req.user = {
-      id: user.id,
-      email: user.email,
-      role: user.role
+      id: userProfile.id,
+      externalId: user.id, // Store the Supabase user ID for reference
+      email: userProfile.email,
+      role: userProfile.role
     };
 
     next();
   } catch (error) {
     console.error('Token verification error:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error during authentication' 
+    return res.status(500).json({
+      error: 'Internal server error during authentication'
     });
   }
 };
@@ -65,14 +108,14 @@ export const authenticateToken = async (req, res, next) => {
 export const authorizeRole = (allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ 
-        error: 'Authentication required' 
+      return res.status(401).json({
+        error: 'Authentication required'
       });
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        error: 'Insufficient permissions' 
+      return res.status(403).json({
+        error: 'Insufficient permissions'
       });
     }
 
@@ -111,16 +154,16 @@ export const requireRole = (roles) => {
 export const requireOwnResource = (idParam = 'id') => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ 
-        error: 'Authentication required' 
+      return res.status(401).json({
+        error: 'Authentication required'
       });
     }
 
     const targetUserId = req.params[idParam] || req.body.userId;
-    
+
     if (req.user.id !== targetUserId) {
-      return res.status(403).json({ 
-        error: 'Cannot access another user\'s resource' 
+      return res.status(403).json({
+        error: 'Cannot access another user\'s resource'
       });
     }
 
