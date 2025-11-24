@@ -5,7 +5,7 @@ import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import Link from "next/link"
 import { Calendar, MapPin, Users, ArrowLeft, Heart } from "lucide-react"
-import { eventApi } from "@/lib/api";
+import { eventApi, registrationApi } from "@/lib/api";
 import { Event } from "@/types/event";
 
 export default function EventDetailPageClient({ params }: { params: { id: string } }) {
@@ -64,29 +64,32 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
   };
 
-  const handleRegister = () => {
-    if (!isRegistered) {
-      setIsRegistered(true);
-      alert("Đăng ký tham gia thành công!");
-    } else {
-      setIsRegistered(false);
-      alert("Hủy đăng ký thành công!");
+  const handleRegister = async () => {
+    if (!event) return;
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      alert("Bạn cần đăng nhập để tham gia sự kiện.");
+      return;
+    }
+
+    try {
+      const res = isRegistered
+        ? await registrationApi.cancelRegistration(event.id, token)
+        : await registrationApi.registerForEvent(event.id, token);
+
+      alert(res.message || (isRegistered ? "Hủy đăng ký thành công" : "Đăng ký thành công"));
+      setIsRegistered(!isRegistered);
+
+      // Tải lại thông tin event để cập nhật số lượng volunteer
+      const updatedEvent = await eventApi.getEventById(event.id);
+      if (updatedEvent.success) setEvent(updatedEvent.data);
+
+    } catch (error) {
+      console.error("Error registering/canceling event:", error);
+      alert("Có lỗi xảy ra khi thao tác với sự kiện.");
     }
   };
-
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <main className="min-h-screen bg-neutral-50 py-12">
-          <div className="container-custom">
-            <p className="text-muted text-lg">Đang tải sự kiện...</p>
-          </div>
-        </main>
-        <Footer />
-      </>
-    );
-  }
 
   if (!event) {
     return (

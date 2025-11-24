@@ -249,3 +249,45 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
     registration: updatedRegistration 
   };
 }
+
+/**
+ * Get registrations for a specific event
+ * @param {string} eventId - Event ID
+ * @param {Object} options
+ * @param {string[]} [options.status] - Optional array of statuses to filter
+ * @param {boolean} [options.countOnly=false] - If true, return only the count
+ * @returns {Promise<Object|Array>} Registrations list or count
+ */
+export async function getEventRegistrations(eventId, options = {}) {
+  const { status, countOnly = false } = options;
+
+  const whereClause = { eventId };
+  if (status && Array.isArray(status) && status.length > 0) {
+    whereClause.status = { in: status };
+  }
+
+  if (countOnly) {
+    const count = await prisma.registration.count({ where: whereClause });
+    return { count };
+  } else {
+    const registrations = await prisma.registration.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        appliedAt: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { appliedAt: 'desc' },
+    });
+    return registrations;
+  }
+}
+

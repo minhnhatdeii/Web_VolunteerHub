@@ -30,6 +30,9 @@ router.get("/", EventController.getEvents);
 // 2. GET /api/events/:id  
 router.get("/:id", EventController.getEventById);
 
+// Get manager events
+router.get("/manager/:id/events", EventController.getManagerEvents);
+
 // 3. POST /api/events  (Manager only)
 router.post(
   "/",

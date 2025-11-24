@@ -1,9 +1,14 @@
+import { PrismaClient } from '../generated/prisma/index.js';
 import { 
   registerForEvent, 
   cancelRegistration, 
   getUserRegistrations, 
-  approveRegistration 
+  approveRegistration,
+  getEventRegistrations
 } from '../services/registrations.service.js';
+
+
+const prisma = new PrismaClient();
 
 /**
  * Register for an event
@@ -87,5 +92,51 @@ export async function approveRegistrationHandler(req, res) {
   } catch (error) {
     console.error('Error approving registration:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+
+/**
+ * GET /registrations/event/:eventId
+ * Query params:
+ *   - status (optional, comma-separated)
+ *   - countOnly (optional, boolean)
+ */
+export async function getRegistrationsByEvent(req, res) {
+  try {
+    const { eventId } = req.params;
+    const { status, countOnly } = req.query;
+    const statusArray = status ? status.split(',').map(s => s.toUpperCase()) : undefined;
+    const isCountOnly = countOnly === 'true';
+
+    // Nếu chỉ là approved + count, không check quyền
+    const isPublicRequest = isCountOnly && statusArray?.length === 1 && statusArray[0] === 'APPROVED';
+
+    if (!isPublicRequest) {
+      // Kiểm tra quyền: phải là admin hoặc owner của event
+      const event = await prisma.event.findUnique({
+        where: { id: eventId },
+        select: { creatorId: true }
+      });
+
+      if (!event) {
+        return res.status(404).json({ success: false, error: 'Event not found' });
+      }
+
+      if (req.user.role !== 'ADMIN' && req.user.id !== event.creatorId) {
+        return res.status(403).json({ success: false, error: 'Forbidden' });
+      }
+    }
+
+    // Lấy registrations từ service
+    const registrations = await getEventRegistrations(eventId, {
+      status: statusArray,
+      countOnly: isCountOnly
+    });
+
+    return res.json({ success: true, data: registrations });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: 'Server error' });
   }
 }

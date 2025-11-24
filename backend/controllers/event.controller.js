@@ -539,7 +539,7 @@ export const getManagerEvents = async (req, res) => {
 
     res.json({
       success: true,
-      data: { manager: user, events },
+      data: events,
       message: null
     });
   } catch (err) {

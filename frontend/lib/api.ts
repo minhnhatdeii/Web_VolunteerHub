@@ -1,4 +1,5 @@
 import { Event } from '@/types/event';
+import { GetRegistrationsOptions, Registration } from '@/types/registration';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -46,6 +47,11 @@ export const eventApi = {
     return apiCall<Event>(`/events/${id}`);
   },
 
+  // Get manager events by manager ID
+  getManagerEvents: async (managerId: string): Promise<ApiResponse<Event[]>> => {
+    return apiCall<Event[]>(`/events/manager/${managerId}/events`);
+  },
+
   // Search events with filters
   searchEvents: async (params?: {
     search?: string;
@@ -63,6 +69,57 @@ export const eventApi = {
     return apiCall<Event[]>(endpoint);
   },
 };
+
+
+export const registrationApi = {
+  getEventRegistrations: async (
+    eventId: string,
+    options?: GetRegistrationsOptions
+  ): Promise<ApiResponse<Registration[]>> => {
+    const params = new URLSearchParams();
+    if (options?.status) params.append('status', options.status.join(','));
+    params.append('countOnly', 'false');
+
+    const headers: Record<string, string> = {};
+    if (options?.managerToken) headers['Authorization'] = `Bearer ${options.managerToken}`;
+
+    const endpoint = `/registrations/event/${eventId}?${params.toString()}`;
+    const result = await apiCall<Registration[]>(endpoint, { headers });
+
+    return result;
+  },
+
+  getEventRegistrationCount: async (
+  eventId: string,
+  options?: { status?: string[] }
+  ): Promise<ApiResponse<{ count: number }>> => { // <--- đây là ApiResponse
+    const params = new URLSearchParams();
+    if (options?.status) params.append('status', options.status.join(','));
+    params.append('countOnly', 'true');
+
+    const endpoint = `/registrations/event/${eventId}?${params.toString()}`;
+    const result = await apiCall<{ count: number }>(endpoint);
+    return result; // trả về ApiResponse<{ count: number }>
+  },
+  
+  //REGISTRATION API FUNCTIONS
+  // Register for an event
+  registerForEvent: async (eventId: string, token: string): Promise<ApiResponse<any>> => {
+    return apiCall(`/registrations/${eventId}/register`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // Cancel registration for an event
+  cancelRegistration: async (eventId: string, token: string): Promise<ApiResponse<any>> => {
+    return apiCall(`/registrations/${eventId}/cancel`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
 
 // User API functions
 export const userApi = {

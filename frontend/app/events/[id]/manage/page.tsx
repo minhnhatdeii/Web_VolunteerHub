@@ -1,55 +1,88 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useParams } from "next/navigation"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
-import { ArrowLeft, Users, Calendar, MapPin, Edit2, Trash2, MessageSquare } from "lucide-react"
+import {
+  ArrowLeft,
+  Users,
+  Calendar,
+  MapPin,
+  Edit2,
+  Trash2,
+  MessageSquare,
+} from "lucide-react"
+import { eventApi, registrationApi } from "@/lib/api"
+import { Event } from "@/types/event"
+import { Registration } from "@/types/registration"
 
-export default function EventManagePage({ params }: { params: { id: string } }) {
-  const [event, setEvent] = useState({
-    id: params.id,
-    title: "Dọn dẹp công viên thành phố",
-    date: "15/11/2024",
-    time: "08:00 - 12:00",
-    location: "Công viên Tao Đàn, Hà Nội",
-    category: "Môi trường",
-    status: "approved",
-    volunteers: 24,
-    maxVolunteers: 50,
-    description: "Chúng tôi tổ chức một sự kiện dọn dẹp công viên để bảo vệ môi trường.",
-    image: "/park-cleanup-event.jpg",
-  })
+export default function EventManagePage() {
+  const params = useParams()
+  const eventId = Array.isArray(params.id) ? params.id[0] : params.id
 
-  const [volunteers, setVolunteers] = useState([
-    { id: 1, name: "Nguyễn Văn A", email: "a@test.com", status: "approved", joinedDate: "10/11/2024" },
-    { id: 2, name: "Trần Thị B", email: "b@test.com", status: "approved", joinedDate: "11/11/2024" },
-    { id: 3, name: "Lê Văn C", email: "c@test.com", status: "pending", joinedDate: "12/11/2024" },
-  ])
-
+  const [event, setEvent] = useState<Event | null>(null)
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [loading, setLoading] = useState(true)
   const [showEditForm, setShowEditForm] = useState(false)
-  const [editData, setEditData] = useState(event)
+  const [editData, setEditData] = useState<Event | null>(null)
 
-  const handleApproveVolunteer = (id: number) => {
-    setVolunteers(volunteers.map((v) => (v.id === id ? { ...v, status: "approved" } : v)))
+  useEffect(() => {
+    if (!eventId) return
+
+    const fetchEventData = async () => {
+      try {
+        setLoading(true)
+        // Lấy chi tiết event
+        const eventRes = await eventApi.getEventById(eventId)
+        setEvent(eventRes.data)
+        setEditData(eventRes.data)
+
+        // Lấy danh sách registrations của event
+        const regRes = await registrationApi.getEventRegistrations(eventId, {
+          status: ["PENDING", "APPROVED", "REJECTED","CANCELLED", "ATTENDED"],
+          managerToken: localStorage.getItem("accessToken") || undefined
+        })
+        setRegistrations(regRes.data)
+      } catch (err) {
+        console.error("Failed to load event data:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEventData()
+  }, [eventId])
+
+  const handleApproveRegistration = (id: string) => {
+    setRegistrations(
+      registrations.map((r) =>
+        r.id === id ? { ...r, status: "APPROVED" } : r
+      )
+    )
   }
 
-  const handleRejectVolunteer = (id: number) => {
-    setVolunteers(volunteers.filter((v) => v.id !== id))
+  const handleRejectRegistration = (id: string) => {
+    setRegistrations(registrations.filter((r) => r.id !== id))
   }
 
   const handleUpdateEvent = () => {
-    setEvent(editData)
-    setShowEditForm(false)
-    alert("Sự kiện đã được cập nhật!")
+    if (editData) {
+      setEvent(editData)
+      setShowEditForm(false)
+      alert("Sự kiện đã được cập nhật!")
+    }
   }
 
   const handleDeleteEvent = () => {
     if (confirm("Bạn có chắc chắn muốn xóa sự kiện này?")) {
       alert("Sự kiện đã được xóa!")
-      // Redirect to manager dashboard
+      // redirect về dashboard
     }
   }
+
+  if (loading || !event) return <p className="text-center mt-20">Đang tải dữ liệu...</p>
 
   return (
     <>
@@ -74,10 +107,12 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                     <h1 className="text-3xl font-bold mb-2">{event.title}</h1>
                     <span
                       className={`text-xs px-3 py-1 rounded-full ${
-                        event.status === "approved" ? "bg-green-100 text-success" : "bg-yellow-100 text-warning"
+                        event.status === "APPROVED"
+                          ? "bg-green-100 text-success"
+                          : "bg-yellow-100 text-warning"
                       }`}
                     >
-                      {event.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
+                      {event.status === "APPROVED" ? "Đã duyệt" : "Chờ duyệt"}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -102,37 +137,41 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                       <label className="block text-sm font-medium mb-2">Tên sự kiện</label>
                       <input
                         type="text"
-                        value={editData.title}
-                        onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                        value={editData?.title || ""}
+                        onChange={(e) =>
+                          setEditData({ ...editData!, title: e.target.value })
+                        }
                         className="input-base"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Mô tả</label>
                       <textarea
-                        value={editData.description}
-                        onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                        value={editData?.description || ""}
+                        onChange={(e) =>
+                          setEditData({ ...editData!, description: e.target.value })
+                        }
                         className="input-base"
                         rows={3}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Ngày</label>
+                        <label className="block text-sm font-medium mb-2">Ngày bắt đầu</label>
                         <input
                           type="text"
-                          value={editData.date}
-                          onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+                          value={new Date(editData?.startDate || "").toLocaleDateString()}
                           className="input-base"
+                          readOnly
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Giờ</label>
+                        <label className="block text-sm font-medium mb-2">Ngày kết thúc</label>
                         <input
                           type="text"
-                          value={editData.time}
-                          onChange={(e) => setEditData({ ...editData, time: e.target.value })}
+                          value={new Date(editData?.endDate || "").toLocaleDateString()}
                           className="input-base"
+                          readOnly
                         />
                       </div>
                     </div>
@@ -140,7 +179,10 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                       <button onClick={handleUpdateEvent} className="btn-primary">
                         Lưu thay đổi
                       </button>
-                      <button onClick={() => setShowEditForm(false)} className="btn-secondary">
+                      <button
+                        onClick={() => setShowEditForm(false)}
+                        className="btn-secondary"
+                      >
                         Hủy
                       </button>
                     </div>
@@ -152,7 +194,8 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                       <div>
                         <p className="text-sm text-muted">Ngày giờ</p>
                         <p className="font-semibold">
-                          {event.date} {event.time}
+                          {new Date(event.startDate).toLocaleString()} -{" "}
+                          {new Date(event.endDate).toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -168,7 +211,8 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                       <div>
                         <p className="text-sm text-muted">Tình nguyện viên</p>
                         <p className="font-semibold">
-                          {event.volunteers}/{event.maxVolunteers}
+                          {registrations.filter((r) => r.status === "APPROVED").length}/
+                          {event.maxParticipants}
                         </p>
                       </div>
                     </div>
@@ -183,38 +227,46 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                 <p className="text-foreground leading-relaxed">{event.description}</p>
               </div>
 
-              {/* Volunteers List */}
+              {/* Registrations List */}
               <div className="card-base p-8">
-                <h2 className="text-2xl font-bold mb-6">Danh sách tình nguyện viên ({volunteers.length})</h2>
+                <h2 className="text-2xl font-bold mb-6">
+                  Danh sách đăng ký ({registrations.length})
+                </h2>
                 <div className="space-y-4">
-                  {volunteers.map((volunteer) => (
+                  {registrations.map((reg) => (
                     <div
-                      key={volunteer.id}
+                      key={reg.id}
                       className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-neutral-50 transition-colors"
                     >
                       <div className="flex-1">
-                        <h3 className="font-semibold">{volunteer.name}</h3>
-                        <p className="text-sm text-muted">{volunteer.email}</p>
-                        <p className="text-xs text-muted mt-1">Đăng ký: {volunteer.joinedDate}</p>
+                        <h3 className="font-semibold">
+                          {reg.user.firstName} {reg.user.lastName}
+                        </h3>
+                        <p className="text-sm text-muted">{reg.user.email}</p>
+                        <p className="text-xs text-muted mt-1">
+                          Đăng ký: {new Date(reg.appliedAt).toLocaleDateString()}
+                        </p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span
                           className={`text-xs px-3 py-1 rounded-full ${
-                            volunteer.status === "approved" ? "bg-green-100 text-success" : "bg-yellow-100 text-warning"
+                            reg.status === "APPROVED"
+                              ? "bg-green-100 text-success"
+                              : "bg-yellow-100 text-warning"
                           }`}
                         >
-                          {volunteer.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
+                          {reg.status === "APPROVED" ? "Đã duyệt" : "Chờ duyệt"}
                         </span>
-                        {volunteer.status === "pending" && (
+                        {reg.status === "PENDING" && (
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleApproveVolunteer(volunteer.id)}
+                              onClick={() => handleApproveRegistration(reg.id)}
                               className="btn-primary text-xs"
                             >
                               Duyệt
                             </button>
                             <button
-                              onClick={() => handleRejectVolunteer(volunteer.id)}
+                              onClick={() => handleRejectRegistration(reg.id)}
                               className="btn-secondary text-xs"
                             >
                               Từ chối
@@ -239,24 +291,32 @@ export default function EventManagePage({ params }: { params: { id: string } }) 
                       <div
                         className="bg-primary h-3 rounded-full"
                         style={{
-                          width: `${(event.volunteers / event.maxVolunteers) * 100}%`,
+                          width: `${
+                            (registrations.filter((r) => r.status === "APPROVED").length /
+                              event.maxParticipants) *
+                            100
+                          }%`,
                         }}
                       ></div>
                     </div>
                     <p className="text-xs text-muted mt-2">
-                      {event.volunteers}/{event.maxVolunteers} chỗ
+                      {registrations.filter((r) => r.status === "APPROVED").length}/
+                      {event.maxParticipants} chỗ
                     </p>
                   </div>
 
                   <div className="pt-6 border-t border-border">
                     <p className="text-sm text-muted mb-3">Tình trạng</p>
                     <p className="font-semibold text-lg">
-                      {event.status === "approved" ? "✓ Đã duyệt" : "⏳ Chờ duyệt"}
+                      {event.status === "APPROVED" ? "✓ Đã duyệt" : "⏳ Chờ duyệt"}
                     </p>
                   </div>
 
                   <div className="pt-6 border-t border-border">
-                    <Link href={`/events/${event.id}`} className="w-full btn-secondary block text-center">
+                    <Link
+                      href={`/events/${event.id}`}
+                      className="w-full btn-secondary block text-center"
+                    >
                       Xem trang công khai
                     </Link>
                   </div>

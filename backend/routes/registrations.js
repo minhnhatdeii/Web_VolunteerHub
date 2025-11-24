@@ -4,7 +4,8 @@ import {
   registerForEventHandler,
   cancelRegistrationHandler,
   getUserRegistrationsHandler,
-  approveRegistrationHandler
+  approveRegistrationHandler,
+  getRegistrationsByEvent
 } from '../controllers/registrations.controller.js';
 
 const router = express.Router();
@@ -30,11 +31,33 @@ router.post('/:id/cancel', authenticateToken, cancelRegistrationHandler);
  */
 router.get('/me', authenticateToken, getUserRegistrationsHandler);
 
+// Get event regis
+
 /**
  * Approve registration
  * POST /api/events/:eventId/registrations/:regId/approve
  * Event manager or admin only
  */
 router.post('/:eventId/registrations/:regId/approve', authenticateToken, approveRegistrationHandler);
+
+
+/**
+ * GET /registrations/event/:eventId
+ * Query params:
+ *   - status: comma-separated, ví dụ ?status=PENDING,APPROVED
+ *   - countOnly: true/false
+ */
+router.get('/event/:eventId', (req, res, next) => {
+  const { status, countOnly } = req.query;
+
+  // Nếu chỉ count APPROVED → public
+  if (status === 'APPROVED' && countOnly === 'true') {
+    return getRegistrationsByEvent(req, res, next);
+  }
+
+  // Ngược lại: cần xác thực
+  authenticateToken(req, res, () => getRegistrationsByEvent(req, res, next));
+});
+
 
 export default router;
