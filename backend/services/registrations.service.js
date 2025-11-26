@@ -251,6 +251,112 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
 }
 
 /**
+ * Reject a registration
+ * @param {string} eventId - Event ID
+ * @param {string} registrationId - Registration ID
+ * @param {string} managerId - Manager ID performing the rejection
+ * @param {string} managerRole - Manager's role
+ * @returns {Object} Result of rejection
+ */
+export async function rejectRegistration(eventId, registrationId, managerId, managerRole) {
+  // Check permission
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: {
+      creatorId: true,
+      title: true,
+      currentParticipants: true
+    }
+  });
+
+  if (!event) {
+    return {
+      success: false,
+      error: 'Event not found',
+      statusCode: 404
+    };
+  }
+
+  // Only event creator or admin can reject
+  if (event.creatorId !== managerId && managerRole !== 'ADMIN') {
+    return {
+      success: false,
+      error: 'You do not have permission to reject this registration',
+      statusCode: 403
+    };
+  }
+
+  const registration = await prisma.registration.findFirst({
+    where: {
+      id: registrationId,
+      eventId: eventId
+    },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (!registration) {
+    return {
+      success: false,
+      error: 'Registration not found for this event',
+      statusCode: 404
+    };
+  }
+
+  // Check if registration is eligible for rejection
+  if (registration.status === 'CANCELLED' || registration.status === 'REJECTED') {
+    return {
+      success: false,
+      error: 'This registration has already been cancelled or rejected',
+      statusCode: 400
+    };
+  }
+
+  // If it was previously APPROVED → decrement participant count
+  if (registration.status === 'APPROVED') {
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        currentParticipants: { decrement: 1 }
+      }
+    });
+  }
+
+  // Update registration to REJECTED
+  const updatedRegistration = await prisma.registration.update({
+    where: { id: registrationId },
+    data: {
+      status: 'REJECTED',
+      completedAt: new Date()
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true
+        }
+      },
+      event: {
+        select: {
+          id: true,
+          title: true
+        }
+      }
+    }
+  });
+
+  return {
+    success: true,
+    message: 'Registration rejected successfully',
+    registration: updatedRegistration
+  };
+}
+
+
+/**
  * Get registrations for a specific event
  * @param {string} eventId - Event ID
  * @param {Object} options

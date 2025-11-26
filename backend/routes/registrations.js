@@ -5,8 +5,10 @@ import {
   cancelRegistrationHandler,
   getUserRegistrationsHandler,
   approveRegistrationHandler,
+  rejectRegistrationHandler,
   getRegistrationsByEvent
 } from '../controllers/registrations.controller.js';
+import { rejectRegistration } from '../services/registrations.service.js';
 
 const router = express.Router();
 
@@ -38,7 +40,10 @@ router.get('/me', authenticateToken, getUserRegistrationsHandler);
  * POST /api/events/:eventId/registrations/:regId/approve
  * Event manager or admin only
  */
-router.post('/:eventId/registrations/:regId/approve', authenticateToken, approveRegistrationHandler);
+router.post('/:eventId/:regId/approve', authenticateToken, approveRegistrationHandler);
+
+// reject registration
+router.post('/:eventId/:regId/reject', authenticateToken, rejectRegistrationHandler);
 
 
 /**

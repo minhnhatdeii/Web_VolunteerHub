@@ -118,6 +118,45 @@ export const registrationApi = {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
+
+  approveRegistration: async (
+    eventId: string,
+    registrationId: string,
+    token: string
+  ): Promise<ApiResponse<any>> => {
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    return apiCall(`/registrations/${eventId}/${registrationId}/approve`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  },
+
+   rejectRegistration: async (
+    eventId: string,
+    registrationId: string,
+    token: string
+  ): Promise<ApiResponse<any>> => {
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    return apiCall<any>(`/registrations/${eventId}/${registrationId}/reject`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  },
+
 };
 
 

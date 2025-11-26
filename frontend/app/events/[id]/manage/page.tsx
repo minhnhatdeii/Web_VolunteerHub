@@ -20,7 +20,7 @@ import { Registration } from "@/types/registration"
 
 export default function EventManagePage() {
   const params = useParams()
-  const eventId = Array.isArray(params.id) ? params.id[0] : params.id
+  const eventId = Array.isArray(params.id) ? params.id[0] : params.id as string
 
   const [event, setEvent] = useState<Event | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
@@ -41,7 +41,7 @@ export default function EventManagePage() {
 
         // Lấy danh sách registrations của event
         const regRes = await registrationApi.getEventRegistrations(eventId, {
-          status: ["PENDING", "APPROVED", "REJECTED","CANCELLED", "ATTENDED"],
+          status: ["PENDING", "APPROVED"],
           managerToken: localStorage.getItem("accessToken") || undefined
         })
         setRegistrations(regRes.data)
@@ -55,17 +55,56 @@ export default function EventManagePage() {
     fetchEventData()
   }, [eventId])
 
-  const handleApproveRegistration = (id: string) => {
-    setRegistrations(
-      registrations.map((r) =>
-        r.id === id ? { ...r, status: "APPROVED" } : r
-      )
-    )
-  }
+  const handleApproveRegistration = async (registrationId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken") || "";
 
-  const handleRejectRegistration = (id: string) => {
-    setRegistrations(registrations.filter((r) => r.id !== id))
-  }
+      const res: any = await registrationApi.approveRegistration(
+        eventId,
+        registrationId,
+        token
+      );
+
+      if (res.success) {
+        alert(`Duyệt ${res.registration.user.firstName} thành công!`);
+        setRegistrations(
+          registrations.map((r) =>
+            r.id === registrationId ? { ...r, status: "APPROVED" } : r
+          )
+        );
+      } else {
+        console.error("Approve failed:", res.message);
+        alert("Duyệt thất bại!");
+      }
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert("Đã xảy ra lỗi khi duyệt đăng ký.");
+    }
+  };
+
+
+  const handleRejectRegistration = async (registrationId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken") || "";
+
+      const res: any = await registrationApi.rejectRegistration(
+        eventId,
+        registrationId,
+        token
+      );
+
+      if (res.success) {
+        alert(`Đã từ chối ${res.registration.user.firstName}!`);
+        setRegistrations(registrations.filter((r) => r.id !== registrationId));
+      } else {
+        console.error("Reject failed:", res.message);
+        alert("Từ chối thất bại!");
+      }
+    } catch (err) {
+      console.error("Reject error:", err);
+      alert("Đã xảy ra lỗi khi từ chối đăng ký.");
+    }
+  };
 
   const handleUpdateEvent = () => {
     if (editData) {
