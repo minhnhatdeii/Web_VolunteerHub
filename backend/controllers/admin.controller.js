@@ -1,5 +1,6 @@
 import { PrismaClient } from '../generated/prisma/index.js';
 import { createNotification } from '../services/notification.service.js'; // Import notification service
+import { emitEventUpdate } from '../realtime/index.js';
 
 const prisma = new PrismaClient();
 
@@ -110,6 +111,8 @@ export const adminApproveEvent = async (req, res) => {
       },
     });
 
+    emitEventUpdate(updatedEvent, 'APPROVED');
+
     // Create notification for the event creator
     await createNotification({
       userId: event.creator.id,
@@ -177,6 +180,8 @@ export const adminRejectEvent = async (req, res) => {
         submissionNote: reason ? `${event.submissionNote || ''} Rejection reason: ${reason}`.trim() : reason
       },
     });
+
+    emitEventUpdate(updatedEvent, 'REJECTED');
 
     // Create notification for the event creator
     await createNotification({

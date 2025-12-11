@@ -1,149 +1,118 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import Link from "next/link"
-import { Search, MapPin, Calendar, Users } from "lucide-react"
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 import { eventApi } from "@/lib/api";
 import { Event } from "@/types/event";
+import { useEventsRefresh } from "@/hooks/use-realtime";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function EventsPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await eventApi.searchEvents({
-          search: searchTerm || undefined,
-          category: selectedCategory !== "all" ? selectedCategory : undefined,
-          status: selectedStatus !== "all" ? selectedStatus : undefined,
-        });
-
-        if (response.success) {
-          setEvents(response.data);
-        } else {
-          console.error('Failed to fetch events:', response.message);
-        }
-      } catch (error) {
-        console.error('Error fetching events:', error);
-      } finally {
-        setLoading(false);
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await eventApi.searchEvents({
+        search: searchTerm || undefined,
+        status: "APPROVED",
+      });
+      if (response.success) {
+        setEvents(response.data);
+      } else {
+        console.error("Failed to fetch events:", response.message);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm]);
 
+  useEffect(() => {
     fetchEvents();
-  }, [searchTerm, selectedCategory, selectedStatus]);
+  }, [fetchEvents]);
 
-  // Format the date to Vietnamese format (DD/MM/YYYY)
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN');
+  useEventsRefresh(() => {
+    fetchEvents();
+  });
+
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
   };
-
-  // Get number of registrations for an event
-  const getVolunteerCount = (event: Event) => {
-    return event.currentParticipants || 0;
-  };
-
-  const filteredEvents = events; // All filtering is now done on the backend
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen bg-neutral-50">
       <Navbar />
-      <main className="min-h-screen bg-neutral-50 py-12">
-        <div className="container-custom">
-          <h1 className="text-4xl font-bold mb-8">Danh sách sự kiện</h1>
-
-          {/* Search and Filters */}
-          <div className="card-base p-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 text-muted" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm sự kiện..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="input-base pl-10"
-                  />
-                </div>
-              </div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="input-base"
-              >
-                <option value="all">Tất cả danh mục</option>
-                <option value="environment">Môi trường</option>
-                <option value="education">Giáo dục</option>
-                <option value="health">Y tế</option>
-                <option value="community">Cộng đồng</option>
-              </select>
-              <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="input-base">
-                <option value="all">Tất cả trạng thái</option>
-                <option value="APPROVED">Đã duyệt</option>
-                <option value="PENDING_APPROVAL">Chờ duyệt</option>
-                <option value="DRAFT">Bản nháp</option>
-                <option value="REJECTED">Từ chối</option>
-                <option value="COMPLETED">Hoàn thành</option>
-                <option value="CANCELLED">Hủy bỏ</option>
-              </select>
-            </div>
+      <main className="flex-1 py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-12">
+            <h1 className="text-4xl font-bold mb-3">Tất cả sự kiện</h1>
+            <p className="text-muted-foreground text-lg">Khám phá các cơ hội tình nguyện đang chờ bạn</p>
           </div>
 
-          {/* Events Grid */}
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-muted text-lg">Đang tải sự kiện...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredEvents.map((event) => (
-                <Link key={event.id} href={`/events/${event.id}`}>
-                  <div className="card-base overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full">
-                    <img
-                      src={event.thumbnailUrl || "/placeholder.svg"}
-                      alt={event.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="p-6">
-                      <h3 className="text-lg font-semibold mb-3">{event.title}</h3>
-                      <div className="space-y-2 text-sm text-muted mb-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={16} />
-                          {formatDate(event.startDate)}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={16} />
-                          {event.location}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Users size={16} />
-                          {getVolunteerCount(event)} tình nguyện viên
-                        </div>
-                      </div>
-                      <button className="w-full btn-primary text-sm">Xem chi tiết</button>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="mb-8 flex flex-col md:flex-row gap-4">
+            <Input
+              type="search"
+              placeholder="Tìm kiếm sự kiện..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button className="bg-primary hover:bg-primary/90 md:w-auto" onClick={fetchEvents}>
+              Tìm kiếm
+            </Button>
+          </div>
 
-          {!loading && filteredEvents.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted text-lg">Không tìm thấy sự kiện nào</p>
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Đang tải sự kiện...</div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">Không tìm thấy sự kiện nào</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map((event) => (
+                <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+                  <img
+                    src={event.thumbnailUrl || "/placeholder.svg"}
+                    alt={event.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                        {event.category || "Sự kiện"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {event.status === "APPROVED" ? "Đã duyệt" : event.status}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-lg mb-2">{event.title}</h3>
+                    <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                      <p>📅 {formatDate(event.startDate)}</p>
+                      <p>📍 {event.location}</p>
+                      <p>
+                        👥 {event.currentParticipants || 0}/{event.maxParticipants} tình nguyện viên
+                      </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{event.description}</p>
+                    <Link href={`/events/${event.id}`} className="mt-auto">
+                      <Button className="w-full bg-primary hover:bg-primary/90">Xem chi tiết</Button>
+                    </Link>
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
         </div>
       </main>
       <Footer />
-    </>
-  )
+    </div>
+  );
 }

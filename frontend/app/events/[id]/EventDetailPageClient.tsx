@@ -1,245 +1,323 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import Link from "next/link"
-import { Calendar, MapPin, Users, ArrowLeft, Heart } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import EventDiscussionFeed from "@/components/event-discussion-feed";
 import { eventApi, registrationApi } from "@/lib/api";
 import { Event } from "@/types/event";
+import { useEventRealtime } from "@/hooks/use-realtime";
 
 export default function EventDetailPageClient({ params }: { params: { id: string } }) {
   const [event, setEvent] = useState<Event | null>(null);
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [volunteers, setVolunteers] = useState(0);
 
-  useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        const eventId = params.id;
-        console.log('Attempting to fetch event with ID:', eventId);
-
-        // Validate that eventId exists before making the API call
-        if (!eventId) {
-          console.error('Event ID is undefined or empty');
-          setLoading(false);
-          return;
-        }
-
-        const response = await eventApi.getEventById(eventId);
-        console.log('API response:', response);
-
-        if (response.success) {
-          setEvent(response.data);
-        } else {
-          console.error('Failed to fetch event:', response.message);
-        }
-      } catch (error) {
-        console.error('Error fetching event:', error);
-      } finally {
-        setLoading(false); // Always set loading to false in the finally block
+  const fetchEvent = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await eventApi.getEventById(params.id);
+      if (response.success) {
+        setEvent(response.data);
+        setVolunteers(response.data.currentParticipants || 0);
       }
-    };
-
-    fetchEvent();
+    } catch (err) {
+      console.error("Failed to load event:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [params.id]);
 
-  // Format the date to Vietnamese format (DD/MM/YYYY)
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN');
-  };
+  useEventRealtime(params.id, {
+    onEventUpdate: (updated) => {
+      if (updated.id !== params.id) return;
+      setEvent((prev) => (prev ? { ...prev, ...updated } : updated));
+      if (typeof updated.currentParticipants === "number") {
+        setVolunteers(updated.currentParticipants);
+      }
+    },
+  });
 
-  // Format the time range
-  const formatTime = (startDateString: string, endDateString: string) => {
-    const startDate = new Date(startDateString);
-    const endDate = new Date(endDateString);
-
-    const startHours = startDate.getHours().toString().padStart(2, '0');
-    const startMinutes = startDate.getMinutes().toString().padStart(2, '0');
-    const endHours = endDate.getHours().toString().padStart(2, '0');
-    const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
-
-    return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
-  };
+  useEffect(() => {
+    fetchEvent();
+  }, [fetchEvent]);
 
   const handleRegister = async () => {
     if (!event) return;
-
     const token = localStorage.getItem("accessToken");
     if (!token) {
-      alert("Bạn cần đăng nhập để tham gia sự kiện.");
+      alert("Bạn cần đăng nhập để đăng ký.");
       return;
     }
-
     try {
-      const res = isRegistered
-        ? await registrationApi.cancelRegistration(event.id, token)
-        : await registrationApi.registerForEvent(event.id, token);
-
-      alert(res.message || (isRegistered ? "Hủy đăng ký thành công" : "Đăng ký thành công"));
-      setIsRegistered(!isRegistered);
-
-      // Tải lại thông tin event để cập nhật số lượng volunteer
-      const updatedEvent = await eventApi.getEventById(event.id);
-      if (updatedEvent.success) setEvent(updatedEvent.data);
-
-    } catch (error) {
-      console.error("Error registering/canceling event:", error);
-      alert("Có lỗi xảy ra khi thao tác với sự kiện.");
+      const res = await registrationApi.registerForEvent(event.id, token);
+      if (res.success) {
+        setIsRegistered(true);
+        setVolunteers((v) => v + 1);
+      } else {
+        alert(res.message || "Đăng ký thất bại");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Đăng ký thất bại");
     }
   };
 
-  if (!event) {
+  const handleCancel = async () => {
+    if (!event) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      alert("Bạn cần đăng nhập.");
+      return;
+    }
+    try {
+      const res = await registrationApi.cancelRegistration(event.id, token);
+      if (res.success) {
+        setIsRegistered(false);
+        setVolunteers((v) => Math.max(0, v - 1));
+      } else {
+        alert(res.message || "Hủy đăng ký thất bại");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Hủy đăng ký thất bại");
+    }
+  };
+
+  const category = event?.category || "Sự kiện";
+  const tags = useMemo(() => {
+    if (!event) return [];
+    const base = [event.category].filter(Boolean);
+    return base;
+  }, [event]);
+
+  if (loading || !event) {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <Navbar />
-        <main className="min-h-screen bg-neutral-50 py-12">
-          <div className="container-custom">
-            <p className="text-error text-lg">Sự kiện không tồn tại</p>
-            <Link href="/events" className="inline-flex items-center text-primary hover:text-primary-dark">
-              <ArrowLeft size={20} className="mr-2" />
-              Quay lại danh sách sự kiện
-            </Link>
+        <main className="flex-1 py-12 px-4">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-muted">Đang tải sự kiện...</p>
           </div>
         </main>
         <Footer />
-      </>
+      </div>
     );
   }
 
+  const progress = event.maxParticipants
+    ? Math.min(100, (volunteers / event.maxParticipants) * 100)
+    : 0;
+
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Navbar />
-      <main className="min-h-screen bg-neutral-50 py-12">
-        <div className="container-custom">
-          <Link href="/events" className="inline-flex items-center text-primary hover:text-primary-dark mb-8">
-            <ArrowLeft size={20} className="mr-2" />
-            Quay lại danh sách
+
+      <main className="flex-1 py-12 px-4">
+        <div className="max-w-6xl mx-auto">
+          <Link href="/events" className="text-primary hover:underline mb-6 block">
+            ← Quay lại sự kiện
           </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              <img
-                src={event.thumbnailUrl || "/placeholder.svg"}
-                alt={event.title}
-                className="w-full h-96 object-cover rounded-lg mb-8"
-              />
+          <img
+            src={event.thumbnailUrl || "/placeholder.svg"}
+            alt={event.title}
+            className="w-full h-96 object-cover rounded-lg mb-8"
+          />
 
-              <div className="card-base p-8 mb-8">
-                <div className="flex justify-between items-start mb-4">
-                  <h1 className="text-4xl font-bold">{event.title}</h1>
-                  <button
-                    onClick={() => setIsFavorite(!isFavorite)}
-                    className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
-                  >
-                    <Heart size={24} className={isFavorite ? "fill-error text-error" : "text-muted"} />
-                  </button>
-                </div>
+          <div className="grid lg:grid-cols-[1fr_380px] gap-8">
+            <div>
+              <div className="mb-6">
+                <span className="text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full">
+                  {category}
+                </span>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-8 pb-8 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="text-primary" size={20} />
-                    <div>
-                      <p className="text-sm text-muted">Ngày giờ</p>
-                      <p className="font-semibold">
-                        {formatDate(event.startDate)} {formatTime(event.startDate, event.endDate)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MapPin className="text-primary" size={20} />
-                    <div>
-                      <p className="text-sm text-muted">Địa điểm</p>
-                      <p className="font-semibold">{event.location}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Users className="text-primary" size={20} />
-                    <div>
-                      <p className="text-sm text-muted">Tình nguyện viên</p>
-                      <p className="font-semibold">
-                        {event.currentParticipants}/{event.maxParticipants}
-                      </p>
-                    </div>
-                  </div>
+              <h1 className="text-4xl font-bold mb-4">{event.title}</h1>
+
+              <div className="space-y-3 mb-8 text-muted-foreground">
+                <p className="text-lg">
+                  📅 {new Date(event.startDate).toLocaleDateString("vi-VN")}{" "}
+                  {new Date(event.startDate).toLocaleTimeString("vi-VN")}
+                </p>
+                <p className="text-lg">
+                  ⏰ {new Date(event.startDate).toLocaleTimeString("vi-VN")} -{" "}
+                  {new Date(event.endDate).toLocaleTimeString("vi-VN")}
+                </p>
+                <p className="text-lg">📍 {event.location}</p>
+              </div>
+
+              <Tabs defaultValue="about" className="mb-8">
+                <TabsList className="grid w-full max-w-md grid-cols-4">
+                  <TabsTrigger value="about">Về sự kiện</TabsTrigger>
+                  <TabsTrigger value="requirements">Yêu cầu</TabsTrigger>
+                  <TabsTrigger value="volunteers">Tình nguyện viên</TabsTrigger>
+                  <TabsTrigger value="discussion">Thảo luận</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="about" className="mt-6 space-y-4">
                   <div>
-                    <p className="text-sm text-muted">Người tổ chức</p>
-                    <p className="font-semibold">{event.creator?.firstName || 'Unknown'} {event.creator?.lastName || ''}</p>
+                    <h3 className="font-bold text-lg mb-2">Mô tả chi tiết</h3>
+                    <p className="text-muted-foreground leading-relaxed">{event.description}</p>
                   </div>
-                </div>
+                  {tags.length > 0 && (
+                    <div>
+                      <h3 className="font-bold text-lg mb-3">Thẻ</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((tag, i) => (
+                          <span
+                            key={i}
+                            className="text-xs font-semibold text-secondary bg-secondary/10 px-3 py-1 rounded-full"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
 
-                <h2 className="text-2xl font-bold mb-4">Mô tả</h2>
-                <p className="text-foreground mb-8 leading-relaxed">{event.description}</p>
-
-                {event.requirements && Array.isArray(event.requirements) && event.requirements.length > 0 && (
-                  <>
-                    <h2 className="text-2xl font-bold mb-4">Yêu cầu</h2>
-                    <ul className="space-y-2">
-                      {event.requirements.map((req, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <div className="w-2 h-2 bg-primary rounded-full"></div>
-                          {req}
+                <TabsContent value="requirements" className="mt-6">
+                  {Array.isArray((event as any).requirements) ? (
+                    <ul className="space-y-3">
+                      {(event as any).requirements.map((req: string, i: number) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <span className="text-primary font-bold">✓</span>
+                          <span className="leading-relaxed">{req}</span>
                         </li>
                       ))}
                     </ul>
-                  </>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Không có yêu cầu cụ thể.</p>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="volunteers" className="mt-6">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Tiến độ đăng ký</p>
+                      <div className="w-full bg-muted rounded-full h-2 mb-2">
+                        <div
+                          className="bg-primary h-2 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="text-sm font-semibold">
+                        {volunteers} / {event.maxParticipants} tình nguyện viên
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="discussion" className="mt-6">
+                  <EventDiscussionFeed />
+                </TabsContent>
+              </Tabs>
+
+              <Card className="p-6 bg-secondary/10 border-secondary/20">
+                <div className="flex items-start gap-4">
+                  <span className="text-5xl">🌍</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground mb-1">Được tổ chức bởi</p>
+                    <p className="font-bold text-xl mb-2">
+                      {event.creator?.firstName} {event.creator?.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                      Liên hệ qua email: {event.creator?.id}
+                    </p>
+                    <Button variant="outline" className="mt-4 bg-transparent">
+                      Theo dõi
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             </div>
 
-            {/* Sidebar */}
-            <div>
-              <div className="card-base p-8 sticky top-20">
-                <div className="mb-6">
-                  <p className="text-sm text-muted mb-2">Tiến độ đăng ký</p>
-                  <div className="w-full bg-neutral-200 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{
-                        width: `${event.maxParticipants ? (event.currentParticipants / event.maxParticipants) * 100 : 0}%`
-                      }}
-                    ></div>
+            <div className="space-y-6">
+              <Card className="p-6 sticky top-20">
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Trạng thái đăng ký</p>
+                    <p className="text-lg font-bold">{isRegistered ? "Đã đăng ký" : "Chưa đăng ký"}</p>
                   </div>
-                  <p className="text-xs text-muted mt-2">
-                    {event.currentParticipants}/{event.maxParticipants} chỗ
-                  </p>
-                </div>
 
-                <button
-                  onClick={handleRegister}
-                  className={`w-full py-3 rounded-lg font-semibold transition-colors mb-4 ${
-                    isRegistered ? "bg-neutral-200 text-foreground hover:bg-neutral-300" : "btn-primary"
-                  }`}
-                >
-                  {isRegistered ? "Hủy đăng ký" : "Đăng ký tham gia"}
-                </button>
+                  <Button
+                    onClick={handleRegister}
+                    className={`w-full ${
+                      isRegistered ? "bg-secondary hover:bg-secondary/90" : "bg-primary hover:bg-primary/90"
+                    }`}
+                    disabled={isRegistered}
+                  >
+                    {isRegistered ? "Đã đăng ký sự kiện" : "Đăng ký sự kiện"}
+                  </Button>
 
-                {isRegistered && (
-                  <Link href="/dashboard/volunteer" className="block text-center py-2 btn-secondary">
-                    Xem dashboard
-                  </Link>
-                )}
+                  {isRegistered && (
+                    <div className="pt-4 border-t border-border space-y-2">
+                      <p className="text-sm text-muted-foreground mb-1">Các tùy chọn khác</p>
+                      <Button variant="outline" className="w-full bg-transparent" onClick={handleCancel}>
+                        Huỷ đăng ký
+                      </Button>
+                      <Button variant="outline" className="w-full bg-transparent">
+                        Chia sẻ sự kiện
+                      </Button>
+                    </div>
+                  )}
 
-                <div className="mt-6 pt-6 border-t border-border">
-                  <p className="text-sm text-muted mb-3">Chia sẻ sự kiện này</p>
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors">
-                      Facebook
-                    </button>
-                    <button className="flex-1 py-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors">
-                      Twitter
-                    </button>
+                  <div className="pt-4 border-t border-border">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      ℹ️ Bạn sẽ nhận được thông báo qua email trước 24 giờ sự kiện bắt đầu
+                    </p>
                   </div>
                 </div>
-              </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="font-bold text-lg mb-4">Người tổ chức</h3>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={event.creator?.avatarUrl || "/placeholder.svg"} alt="Organizer" />
+                    <AvatarFallback>
+                      {(event.creator?.firstName || "O").charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {event.creator?.firstName} {event.creator?.lastName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Quản lý sự kiện</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-primary/5">
+                <h3 className="font-bold text-lg mb-3">Chia sẻ sự kiện</h3>
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                  Mời bạn bè của bạn tham gia sự kiện này!
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                    Facebook
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                    Twitter
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                    Copy
+                  </Button>
+                </div>
+              </Card>
             </div>
           </div>
         </div>
       </main>
+
       <Footer />
-    </>
-  )
+    </div>
+  );
 }

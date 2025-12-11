@@ -6,7 +6,10 @@
     "description": "API documentation for VolunteerHub backend"
   },
   "servers": [
-    { "url": "http://localhost:5000/api", "description": "Local API" }
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local API"
+    }
   ],
   "components": {
     "securitySchemes": {
@@ -20,107 +23,271 @@
       "User": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "firstName": { "type": "string" },
-          "lastName": { "type": "string" },
-          "bio": { "type": "string", "nullable": true },
-          "avatarUrl": { "type": "string", "nullable": true },
-          "role": { "type": "string", "enum": ["VOLUNTEER", "MANAGER", "ADMIN"] },
-          "isLocked": { "type": "boolean" },
-          "pushNotifications": { "type": "boolean" },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "VOLUNTEER",
+              "MANAGER",
+              "ADMIN"
+            ]
+          },
+          "isLocked": {
+            "type": "boolean"
+          },
+          "pushNotifications": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "AuthLoginRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password"
+        ],
         "properties": {
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string" }
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
         }
       },
       "AuthRegisterRequest": {
         "type": "object",
-        "required": ["email", "password", "firstName", "lastName"],
+        "required": [
+          "email",
+          "password",
+          "firstName",
+          "lastName"
+        ],
         "properties": {
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string" },
-          "firstName": { "type": "string" },
-          "lastName": { "type": "string" },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
           "role": {
             "type": "string",
-            "enum": ["VOLUNTEER", "MANAGER"],
+            "enum": [
+              "VOLUNTEER",
+              "MANAGER"
+            ],
             "description": "User role during registration. Defaults to VOLUNTEER if not provided."
           }
         }
       },
       "LockRequest": {
         "type": "object",
-        "required": ["isLocked"],
-        "properties": { "isLocked": { "type": "boolean" } }
+        "required": [
+          "isLocked"
+        ],
+        "properties": {
+          "isLocked": {
+            "type": "boolean"
+          }
+        }
       },
       "UpdateMeRequest": {
         "type": "object",
         "properties": {
-          "firstName": { "type": "string" },
-          "lastName": { "type": "string" },
-          "bio": { "type": "string" },
-          "avatarUrl": { "type": "string" },
-          "pushNotifications": { "type": "boolean" },
-          "currentPassword": { "type": "string" },
-          "newPassword": { "type": "string" }
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "pushNotifications": {
+            "type": "boolean"
+          },
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
         }
       },
       "UploadAvatarRequest": {
         "type": "object",
         "properties": {
-          "dataUrl": { "type": "string", "description": "data:image/png;base64,..." },
-          "base64": { "type": "string" },
-          "contentType": { "type": "string", "example": "image/png" }
+          "dataUrl": {
+            "type": "string",
+            "description": "data:image/png;base64,..."
+          },
+          "base64": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string",
+            "example": "image/png"
+          }
         }
       },
       "Event": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "title": { "type": "string" },
-          "description": { "type": "string", "nullable": true },
-          "startDate": { "type": "string", "format": "date-time" },
-          "endDate": { "type": "string", "format": "date-time" },
-          "location": { "type": "string" },
-          "category": { "type": "string" },
-          "maxParticipants": { "type": "integer" },
-          "currentParticipants": { "type": "integer" },
-          "thumbnailUrl": { "type": "string", "nullable": true },
-          "status": { "type": "string", "enum": ["DRAFT","SUBMITTED","PENDING_APPROVAL","APPROVED","REJECTED","COMPLETED","CANCELLED"] },
-          "creatorId": { "type": "string" },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "updatedAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "location": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "maxParticipants": {
+            "type": "integer"
+          },
+          "currentParticipants": {
+            "type": "integer"
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "PENDING_APPROVAL",
+              "APPROVED",
+              "REJECTED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "creatorId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         },
-        "required": ["title","startDate","endDate","location","category","maxParticipants","creatorId"]
+        "required": [
+          "title",
+          "startDate",
+          "endDate",
+          "location",
+          "category",
+          "maxParticipants",
+          "creatorId"
+        ]
       },
       "EventCreateRequest": {
         "type": "object",
         "properties": {
-          "title": { "type": "string" },
-          "description": { "type": "string" },
-          "startDate": { "type": "string" },
-          "endDate": { "type": "string" },
-          "location": { "type": "string" },
-          "category": { "type": "string" },
-          "maxParticipants": { "type": "string" },
-          "thumbnailUrl": { "type": "string" }
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "maxParticipants": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": "string"
+          }
         },
-        "required": ["title","startDate","endDate","location","category","maxParticipants"]
+        "required": [
+          "title",
+          "startDate",
+          "endDate",
+          "location",
+          "category",
+          "maxParticipants"
+        ]
       },
       "ThumbnailUploadRequest": {
         "type": "object",
         "properties": {
-          "file": { "type": "string", "format": "binary" }
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
         },
-        "required": ["file"]
+        "required": [
+          "file"
+        ]
       }
     }
   },
@@ -133,7 +300,11 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/AuthRegisterRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRegisterRequest"
+              }
+            }
           }
         },
         "responses": {
@@ -144,16 +315,28 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "message": { "type": "string", "example": "User registered successfully" },
-                    "user": { "$ref": "#/components/schemas/User" },
-                    "accessToken": { "type": "string" },
-                    "refreshToken": { "type": "string" }
+                    "message": {
+                      "type": "string",
+                      "example": "User registered successfully"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/login": {
@@ -163,7 +346,11 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/AuthLoginRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLoginRequest"
+              }
+            }
           }
         },
         "responses": {
@@ -174,110 +361,289 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "message": { "type": "string", "example": "Login successful" },
-                    "user": { "$ref": "#/components/schemas/User" },
-                    "accessToken": { "type": "string" },
-                    "refreshToken": { "type": "string" }
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "accessToken": {
+                      "type": "string"
+                    },
+                    "refreshToken": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/users/me": {
       "get": {
         "summary": "Get current user",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Current user profile",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
           }
-        }
+        },
+        "tags": [
+          "Users"
+        ]
       },
       "put": {
         "summary": "Update current user",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/UpdateMeRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeRequest"
+              }
+            }
           }
         },
-        "responses": { "200": { "description": "Updated" } }
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/users/me/avatar": {
       "post": {
         "summary": "Upload avatar (Supabase)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/UploadAvatarRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadAvatarRequest"
+              }
+            }
           }
         },
-        "responses": { "200": { "description": "Uploaded" } }
+        "responses": {
+          "200": {
+            "description": "Uploaded"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/users/{id}/lock": {
       "post": {
         "summary": "Lock/unlock account",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LockRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockRequest"
+              }
+            }
+          }
         },
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not Found" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "tags": [
+          "Users"
+        ]
       }
     },
     "/events": {
       "get": {
         "summary": "List all events (with optional filters)",
         "parameters": [
-          { "name": "status", "in": "query", "schema": { "type": "string" } },
-          { "name": "category", "in": "query", "schema": { "type": "string" } },
-          { "name": "location", "in": "query", "schema": { "type": "string" } },
-          { "name": "q", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "200": { "description": "List of events", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } }
+        "responses": {
+          "200": {
+            "description": "List of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Events"
+        ]
       },
       "post": {
         "summary": "Create a new event (manager/admin only)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/EventCreateRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreateRequest"
+              }
+            }
           }
         },
-        "responses": { "201": { "description": "Created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Events"
+        ]
       }
     },
     "/events/{id}": {
       "get": {
         "summary": "Get event details",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "200": { "description": "Event details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+        "responses": {
+          "200": {
+            "description": "Event details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Events"
+        ]
       },
       "put": {
         "summary": "Update event (owner/admin only)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/EventCreateRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/EventCreateRequest"
+              }
             }
           }
         },
@@ -286,49 +652,127 @@
             "description": "Updated event",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Event" }
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Events"
+        ]
       },
       "delete": {
         "summary": "Delete event (owner/admin only)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "responses": { "200": { "description": "Deleted successfully" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted successfully"
+          }
+        },
+        "tags": [
+          "Events"
+        ]
       }
     },
     "/events/{id}/submit": {
       "post": {
         "summary": "Submit event for approval",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "responses": { "200": { "description": "Submitted for approval", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Event" } } } } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submitted for approval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Events"
+        ]
       }
     },
     "/managers/{id}/events": {
       "get": {
         "summary": "Get events created by a manager",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "200": { "description": "Manager's events", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } }
+        "responses": {
+          "200": {
+            "description": "Manager's events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Managers"
+        ]
       }
     },
     "/events/upload-thumbnail": {
       "post": {
         "summary": "Upload event thumbnail (Supabase)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "multipart/form-data": {
-              "schema": { "$ref": "#/components/schemas/ThumbnailUploadRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ThumbnailUploadRequest"
+              }
             }
           }
         },
@@ -340,25 +784,64 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "url": { "type": "string" }
+                    "url": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Events"
+        ]
       }
     },
     "/admin/events": {
       "get": {
         "summary": "List events for admin (with optional status filter)",
         "description": "Admin only endpoint to view all events, with optional status filter (e.g., ?status=PENDING_APPROVAL)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "status", "in": "query", "description": "Filter by event status", "schema": { "type": "string" } },
-          { "name": "q", "in": "query", "description": "Search query", "schema": { "type": "string" } },
-          { "name": "page", "in": "query", "description": "Page number for pagination", "schema": { "type": "integer", "default": 1 } },
-          { "name": "limit", "in": "query", "description": "Number of results per page", "schema": { "type": "integer", "default": 10 } }
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by event status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number for pagination",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of results per page",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -368,14 +851,27 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Event"
+                      }
+                    },
                     "pagination": {
                       "type": "object",
                       "properties": {
-                        "page": { "type": "integer" },
-                        "limit": { "type": "integer" },
-                        "total": { "type": "integer" },
-                        "pages": { "type": "integer" }
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "pages": {
+                          "type": "integer"
+                        }
                       }
                     }
                   }
@@ -383,16 +879,30 @@
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Admin"
+        ]
       }
     },
     "/admin/events/{id}/approve": {
       "post": {
         "summary": "Approve an event",
         "description": "Admin only endpoint to approve an event pending approval",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "content": {
@@ -400,7 +910,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "reason": { "type": "string", "description": "Optional reason for approval" }
+                  "reason": {
+                    "type": "string",
+                    "description": "Optional reason for approval"
+                  }
                 }
               }
             }
@@ -414,23 +927,41 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "message": { "type": "string" },
-                    "event": { "$ref": "#/components/schemas/Event" }
+                    "message": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "$ref": "#/components/schemas/Event"
+                    }
                   }
                 }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Admin"
+        ]
       }
     },
     "/admin/events/{id}/reject": {
       "post": {
         "summary": "Reject an event",
         "description": "Admin only endpoint to reject an event pending approval",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -439,9 +970,14 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "reason": { "type": "string", "description": "Required reason for rejection" }
+                  "reason": {
+                    "type": "string",
+                    "description": "Required reason for rejection"
+                  }
                 },
-                "required": ["reason"]
+                "required": [
+                  "reason"
+                ]
               }
             }
           }
@@ -454,15 +990,44 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "message": { "type": "string" },
-                    "event": { "$ref": "#/components/schemas/Event" }
+                    "message": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "$ref": "#/components/schemas/Event"
+                    }
                   }
                 }
               }
             }
           }
-        }
+        },
+        "tags": [
+          "Admin"
+        ]
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Đăng ký / đăng nhập / refresh token"
+    },
+    {
+      "name": "Users",
+      "description": "Thông tin người dùng và cài đặt"
+    },
+    {
+      "name": "Events",
+      "description": "Quản lý sự kiện (public/manager)"
+    },
+    {
+      "name": "Managers",
+      "description": "Xem sự kiện của manager"
+    },
+    {
+      "name": "Admin",
+      "description": "Duyệt / từ chối sự kiện"
+    }
+  ]
 }

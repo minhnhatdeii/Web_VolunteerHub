@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import Navbar from "@/components/navbar"
@@ -17,10 +17,11 @@ import {
 import { eventApi, registrationApi } from "@/lib/api"
 import { Event } from "@/types/event"
 import { Registration } from "@/types/registration"
+import { useEventRealtime } from "@/hooks/use-realtime"
 
 export default function EventManagePage() {
   const params = useParams()
-  const eventId = Array.isArray(params.id) ? params.id[0] : params.id as string
+  const eventId = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
   const [event, setEvent] = useState<Event | null>(null)
   const [registrations, setRegistrations] = useState<Registration[]>([])
@@ -28,83 +29,76 @@ export default function EventManagePage() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [editData, setEditData] = useState<Event | null>(null)
 
-  useEffect(() => {
+  const fetchEventData = useCallback(async () => {
     if (!eventId) return
+    try {
+      setLoading(true)
+      const eventRes = await eventApi.getEventById(eventId)
+      setEvent(eventRes.data)
+      setEditData(eventRes.data)
 
-    const fetchEventData = async () => {
-      try {
-        setLoading(true)
-        // Lấy chi tiết event
-        const eventRes = await eventApi.getEventById(eventId)
-        setEvent(eventRes.data)
-        setEditData(eventRes.data)
-
-        // Lấy danh sách registrations của event
-        const regRes = await registrationApi.getEventRegistrations(eventId, {
-          status: ["PENDING", "APPROVED"],
-          managerToken: localStorage.getItem("accessToken") || undefined
-        })
-        setRegistrations(regRes.data)
-      } catch (err) {
-        console.error("Failed to load event data:", err)
-      } finally {
-        setLoading(false)
-      }
+      const regRes = await registrationApi.getEventRegistrations(eventId, {
+        status: ["PENDING", "APPROVED"],
+        managerToken: localStorage.getItem("accessToken") || undefined,
+      })
+      setRegistrations(regRes.data)
+    } catch (err) {
+      console.error("Failed to load event data:", err)
+    } finally {
+      setLoading(false)
     }
-
-    fetchEventData()
   }, [eventId])
+
+  useEffect(() => {
+    fetchEventData()
+  }, [fetchEventData])
+
+  useEventRealtime(eventId, {
+    onEventUpdate: (updated) => {
+      setEvent((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev))
+      setEditData((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev))
+    },
+  })
 
   const handleApproveRegistration = async (registrationId: string) => {
     try {
-      const token = localStorage.getItem("accessToken") || "";
+      const token = localStorage.getItem("accessToken") || ""
 
-      const res: any = await registrationApi.approveRegistration(
-        eventId,
-        registrationId,
-        token
-      );
+      const res: any = await registrationApi.approveRegistration(eventId, registrationId, token)
 
       if (res.success) {
-        alert(`Duyệt ${res.registration.user.firstName} thành công!`);
+        alert(`Duyệt ${res.registration.user.firstName} thành công!`)
         setRegistrations(
-          registrations.map((r) =>
-            r.id === registrationId ? { ...r, status: "APPROVED" } : r
-          )
-        );
+          registrations.map((r) => (r.id === registrationId ? { ...r, status: "APPROVED" } : r)),
+        )
       } else {
-        console.error("Approve failed:", res.message);
-        alert("Duyệt thất bại!");
+        console.error("Approve failed:", res.message)
+        alert("Duyệt thất bại!")
       }
     } catch (err) {
-      console.error("Approve error:", err);
-      alert("Đã xảy ra lỗi khi duyệt đăng ký.");
+      console.error("Approve error:", err)
+      alert("Đã xảy ra lỗi khi duyệt đăng ký.")
     }
-  };
-
+  }
 
   const handleRejectRegistration = async (registrationId: string) => {
     try {
-      const token = localStorage.getItem("accessToken") || "";
+      const token = localStorage.getItem("accessToken") || ""
 
-      const res: any = await registrationApi.rejectRegistration(
-        eventId,
-        registrationId,
-        token
-      );
+      const res: any = await registrationApi.rejectRegistration(eventId, registrationId, token)
 
       if (res.success) {
-        alert(`Đã từ chối ${res.registration.user.firstName}!`);
-        setRegistrations(registrations.filter((r) => r.id !== registrationId));
+        alert(`Đã từ chối ${res.registration.user.firstName}!`)
+        setRegistrations(registrations.filter((r) => r.id !== registrationId))
       } else {
-        console.error("Reject failed:", res.message);
-        alert("Từ chối thất bại!");
+        console.error("Reject failed:", res.message)
+        alert("Từ chối thất bại!")
       }
     } catch (err) {
-      console.error("Reject error:", err);
-      alert("Đã xảy ra lỗi khi từ chối đăng ký.");
+      console.error("Reject error:", err)
+      alert("Đã xảy ra lỗi khi từ chối đăng ký.")
     }
-  };
+  }
 
   const handleUpdateEvent = () => {
     if (editData) {
@@ -177,9 +171,7 @@ export default function EventManagePage() {
                       <input
                         type="text"
                         value={editData?.title || ""}
-                        onChange={(e) =>
-                          setEditData({ ...editData!, title: e.target.value })
-                        }
+                        onChange={(e) => setEditData({ ...editData!, title: e.target.value })}
                         className="input-base"
                       />
                     </div>
@@ -187,9 +179,7 @@ export default function EventManagePage() {
                       <label className="block text-sm font-medium mb-2">Mô tả</label>
                       <textarea
                         value={editData?.description || ""}
-                        onChange={(e) =>
-                          setEditData({ ...editData!, description: e.target.value })
-                        }
+                        onChange={(e) => setEditData({ ...editData!, description: e.target.value })}
                         className="input-base"
                         rows={3}
                       />
@@ -218,10 +208,7 @@ export default function EventManagePage() {
                       <button onClick={handleUpdateEvent} className="btn-primary">
                         Lưu thay đổi
                       </button>
-                      <button
-                        onClick={() => setShowEditForm(false)}
-                        className="btn-secondary"
-                      >
+                      <button onClick={() => setShowEditForm(false)} className="btn-secondary">
                         Hủy
                       </button>
                     </div>
@@ -347,15 +334,12 @@ export default function EventManagePage() {
                   <div className="pt-6 border-t border-border">
                     <p className="text-sm text-muted mb-3">Tình trạng</p>
                     <p className="font-semibold text-lg">
-                      {event.status === "APPROVED" ? "✓ Đã duyệt" : "⏳ Chờ duyệt"}
+                      {event.status === "APPROVED" ? "Đã duyệt" : "Chờ duyệt"}
                     </p>
                   </div>
 
                   <div className="pt-6 border-t border-border">
-                    <Link
-                      href={`/events/${event.id}`}
-                      className="w-full btn-secondary block text-center"
-                    >
+                    <Link href={`/events/${event.id}`} className="w-full btn-secondary block text-center">
                       Xem trang công khai
                     </Link>
                   </div>

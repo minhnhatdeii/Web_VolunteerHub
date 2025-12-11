@@ -8,6 +8,7 @@ import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initRealtime, shutdownRealtime } from './realtime/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -58,6 +59,7 @@ app.use((err, req, res, next) => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
+  await shutdownRealtime();
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -66,6 +68,7 @@ process.on('SIGINT', async () => {
 const server = app.listen(PORT, async () => {
   try {
     await prisma.$connect();
+    await initRealtime(server);
     console.log(`Server is running on port ${PORT}`);
     console.log(`Health check available at http://localhost:${PORT}/health`);
     console.log('Database connected successfully');

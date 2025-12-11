@@ -2,6 +2,7 @@ import { PrismaClient } from '../generated/prisma/index.js';
 import { z } from 'zod';
 import { ZodError } from "zod";
 import { createClient } from '@supabase/supabase-js';
+import { emitEventUpdate } from '../realtime/index.js';
 
 const prisma = new PrismaClient();
 
@@ -501,6 +502,8 @@ export const approveEvent = async (req, res) => {
       where: { id },
       data: { status: 'APPROVED' },
     });
+
+    emitEventUpdate(updated, 'APPROVED');
 
     res.json({
       success: true,
