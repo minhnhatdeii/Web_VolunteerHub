@@ -1,4 +1,5 @@
 import { PrismaClient } from '../generated/prisma/index.js';
+import { emitNotification } from '../realtime/index.js';
 
 const prisma = new PrismaClient();
 
@@ -16,14 +17,22 @@ export const createNotification = async ({ userId, title, message, type, data = 
   try {
     const notification = await prisma.notification.create({
       data: {
-        userId,
+        userId: userId,
         title,
-        message,
+        message: message,
         type,
         data: data ? data : undefined, // Only include data if it's provided
       },
     });
-    
+
+    // Emit real-time notification to the user
+    try {
+      emitNotification(notification, userId, 'NEW');
+    } catch (emitError) {
+      console.error('Error emitting real-time notification:', emitError);
+      // Don't throw error as it's not critical to the notification creation
+    }
+
     return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -42,20 +51,20 @@ export const createNotification = async ({ userId, title, message, type, data = 
  */
 export const getUserNotifications = async (userId, options = {}) => {
   const { limit = 10, offset = 0, unreadOnly = false } = options;
-  
+
   try {
     const where = {
-      userId,
+      userId: userId,
       ...(unreadOnly && { isRead: false })
     };
-    
+
     const notifications = await prisma.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
     });
-    
+
     return notifications;
   } catch (error) {
     console.error('Error getting user notifications:', error);
@@ -80,7 +89,7 @@ export const markNotificationAsRead = async (notificationId, userId) => {
         isRead: true,
       },
     });
-    
+
     return notification;
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -97,14 +106,14 @@ export const markAllNotificationsAsRead = async (userId) => {
   try {
     const result = await prisma.notification.updateMany({
       where: {
-        userId,
+        userId: userId,
         isRead: false,
       },
       data: {
         isRead: true,
       },
     });
-    
+
     return result.count;
   } catch (error) {
     console.error('Error marking all notifications as read:', error);

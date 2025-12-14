@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ZodError } from "zod";
 import { createClient } from '@supabase/supabase-js';
 import { emitEventUpdate } from '../realtime/index.js';
+import { createNotification } from '../services/notification.service.js';
 
 const prisma = new PrismaClient();
 
@@ -223,6 +224,16 @@ export const createEvent = async (req, res) => {
     // Prioritize the uploaded file URL over any thumbnailUrl in the request body
     const finalThumbnailUrl = thumbnailUrl || null;
 
+    // Get manager info for notification
+    const manager = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true
+      }
+    });
+
     const event = await prisma.event.create({
       data: {
         ...parsed,
@@ -233,6 +244,42 @@ export const createEvent = async (req, res) => {
         thumbnailUrl: finalThumbnailUrl
       },
     });
+
+    // Notify all admins about the new event creation
+    try {
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', isLocked: false },
+        select: { id: true }
+      });
+
+      const notificationPromises = admins.map(admin =>
+        createNotification({
+          userId: admin.id,
+          title: 'Sự kiện mới cần phê duyệt',
+          message: `Sự kiện "${event.title}" từ ${manager?.firstName || ''} ${manager?.lastName || ''} vừa được tạo và đang chờ phê duyệt.`,
+          type: 'EVENT_PENDING_APPROVAL',
+          data: {
+            eventId: event.id,
+            eventTitle: event.title,
+            managerId: event.creatorId,
+            managerName: `${manager?.firstName || ''} ${manager?.lastName || ''}`
+          }
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`Notified ${admins.length} admins about new event: ${event.title}`);
+
+      // Also emit realtime notification for the event creation
+      try {
+        emitEventUpdate(event, 'CREATED');
+      } catch (realtimeError) {
+        console.error('Failed to emit realtime notification:', realtimeError);
+      }
+    } catch (notifError) {
+      console.error('Failed to create admin notifications for new event:', notifError);
+      // Don't fail the request if notification fails
+    }
 
     res.status(201).json({
       success: true,
@@ -457,8 +504,45 @@ export const submitEventForApproval = async (req, res) => {
     // Update the event status to pending approval
     const updatedEvent = await prisma.event.update({
       where: { id },
-      data: { status: 'PENDING_APPROVAL' }
+      data: { status: 'PENDING_APPROVAL' },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
     });
+
+    // Notify all admins about the new event submission
+    try {
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN', isLocked: false },
+        select: { id: true }
+      });
+
+      const notificationPromises = admins.map(admin =>
+        createNotification({
+          userId: admin.id,
+          title: 'Sự kiện mới cần phê duyệt',
+          message: `Sự kiện "${event.title}" từ ${updatedEvent.creator.firstName} ${updatedEvent.creator.lastName} đang chờ phê duyệt.`,
+          type: 'EVENT_PENDING_APPROVAL',
+          data: {
+            eventId: event.id,
+            eventTitle: event.title,
+            managerId: event.creatorId,
+            managerName: `${updatedEvent.creator.firstName} ${updatedEvent.creator.lastName}`
+          }
+        })
+      );
+
+      await Promise.all(notificationPromises);
+    } catch (notifError) {
+      console.error('Failed to create admin notifications:', notifError);
+    }
 
     res.json({
       success: true,

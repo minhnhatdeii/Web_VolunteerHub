@@ -10,11 +10,12 @@ import exampleRoutes from './examples.js';
 import adminRoutes from './admin.js';
 import managerRoutes from './managers.js';
 import postRoutes from './posts.js';
+import notificationRoutes from './notifications.js';
 import { getRealtimeStatus } from '../realtime/index.js';
 
 // Root route
 router.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Welcome to the VolunteerHub API!',
     version: '1.0.0',
     endpoints: {
@@ -39,6 +40,7 @@ router.get('/health', (req, res) => {
 // API routes
 router.use('/api/auth', authRoutes);
 router.use('/api/users', userRoutes);
+router.use('/api/users', notificationRoutes); // Mount notification routes under /api/users
 router.use('/api/events', eventRoutes);
 router.use('/api/registrations', registrationRoutes);
 router.use('/api/examples', exampleRoutes);

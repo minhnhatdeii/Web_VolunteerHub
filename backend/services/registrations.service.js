@@ -1,4 +1,5 @@
 import prisma from '../db.js';
+import { createNotification } from './notification.service.js';
 
 /**
  * Register user for an event
@@ -18,20 +19,20 @@ export async function registerForEvent(userId, eventId) {
       status: true
     }
   });
-  
+
   if (!event) {
     return { error: 'Event not found', statusCode: 404 };
   }
-  
+
   // Check if event is approved and has space
   if (event.status !== 'APPROVED') {
     return { error: 'Event is not approved for registration', statusCode: 400 };
   }
-  
+
   if (event.currentParticipants >= event.maxParticipants) {
     return { error: 'Event is at maximum capacity', statusCode: 400 };
   }
-  
+
   // Check if user is already registered
   const existingRegistration = await prisma.registration.findFirst({
     where: {
@@ -39,11 +40,11 @@ export async function registerForEvent(userId, eventId) {
       eventId: eventId
     }
   });
-  
+
   if (existingRegistration) {
     return { error: 'User is already registered for this event', statusCode: 400 };
   }
-  
+
   // Create the registration with PENDING status
   const registration = await prisma.registration.create({
     data: {
@@ -66,12 +67,13 @@ export async function registerForEvent(userId, eventId) {
           title: true,
           startDate: true,
           endDate: true,
-          location: true
+          location: true,
+          creatorId: true
         }
       }
     }
   });
-  
+
   // Update the event's current participant count
   await prisma.event.update({
     where: { id: eventId },
@@ -79,7 +81,52 @@ export async function registerForEvent(userId, eventId) {
       currentParticipants: { increment: 1 }
     }
   });
-  
+
+  // Create notification for the volunteer
+  try {
+    await createNotification({
+      userId: userId,
+      title: 'Đăng ký sự kiện thành công',
+      message: `Bạn đã đăng ký tham gia sự kiện "${registration.event.title}". Vui lòng chờ quản lý phê duyệt.`,
+      type: 'REGISTRATION_CREATED',
+      data: {
+        eventId: registration.event.id,
+        eventTitle: registration.event.title,
+        registrationId: registration.id,
+        status: 'PENDING'
+      }
+    });
+  } catch (notifError) {
+    console.error('Failed to create registration notification:', notifError);
+  }
+
+  // Create notification for event manager
+  try {
+    console.log('Creating notification for event manager:', {
+      userId: registration.event.creatorId,
+      eventTitle: registration.event.title,
+      userName: `${registration.user.firstName} ${registration.user.lastName}`
+    });
+
+    const notification = await createNotification({
+      userId: registration.event.creatorId,
+      title: 'New Registration Request',
+      message: `${registration.user.firstName} ${registration.user.lastName} has registered for "${registration.event.title}"`,
+      type: 'NEW_REGISTRATION',
+      data: {
+        eventId: registration.event.id,
+        eventTitle: registration.event.title,
+        registrationId: registration.id,
+        userId: registration.user.id,
+        userName: `${registration.user.firstName} ${registration.user.lastName}`
+      }
+    });
+
+    console.log('Successfully created notification:', notification);
+  } catch (notifError) {
+    console.error('Failed to create registration notification:', notifError);
+  }
+
   return registration;
 }
 
@@ -97,30 +144,30 @@ export async function cancelRegistration(userId, eventId) {
       eventId: eventId
     }
   });
-  
+
   if (!registration) {
-    return { 
-      success: false, 
-      error: 'Registration not found', 
-      statusCode: 404 
+    return {
+      success: false,
+      error: 'Registration not found',
+      statusCode: 404
     };
   }
-  
+
   // Check if registration can be canceled (not attended or completed already)
   if (registration.status === 'ATTENDED' || registration.status === 'CANCELLED') {
-    return { 
-      success: false, 
-      error: 'Cannot cancel registration that has already been attended or cancelled', 
-      statusCode: 400 
+    return {
+      success: false,
+      error: 'Cannot cancel registration that has already been attended or cancelled',
+      statusCode: 400
     };
   }
-  
+
   // Update the registration status to CANCELLED
   await prisma.registration.update({
     where: { id: registration.id },
     data: { status: 'CANCELLED' }
   });
-  
+
   // Update the event's current participant count
   await prisma.event.update({
     where: { id: eventId },
@@ -128,10 +175,10 @@ export async function cancelRegistration(userId, eventId) {
       currentParticipants: { decrement: 1 }
     }
   });
-  
-  return { 
-    success: true, 
-    message: 'Registration canceled successfully' 
+
+  return {
+    success: true,
+    message: 'Registration canceled successfully'
   };
 }
 
@@ -162,7 +209,7 @@ export async function getUserRegistrations(userId) {
       appliedAt: 'desc'
     }
   });
-  
+
   return registrations;
 }
 
@@ -184,24 +231,24 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
       title: true
     }
   });
-  
+
   if (!event) {
-    return { 
-      success: false, 
-      error: 'Event not found', 
-      statusCode: 404 
+    return {
+      success: false,
+      error: 'Event not found',
+      statusCode: 404
     };
   }
-  
+
   // Only the event creator (manager) or an admin can approve registrations
   if (event.creatorId !== managerId && managerRole !== 'ADMIN') {
-    return { 
-      success: false, 
-      error: 'You do not have permission to approve this registration', 
-      statusCode: 403 
+    return {
+      success: false,
+      error: 'You do not have permission to approve this registration',
+      statusCode: 403
     };
   }
-  
+
   // Verify the registration exists and belongs to the event
   const registration = await prisma.registration.findFirst({
     where: {
@@ -209,19 +256,19 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
       eventId: eventId
     }
   });
-  
+
   if (!registration) {
-    return { 
-      success: false, 
-      error: 'Registration not found for this event', 
-      statusCode: 404 
+    return {
+      success: false,
+      error: 'Registration not found for this event',
+      statusCode: 404
     };
   }
-  
+
   // Update the registration status to APPROVED
   const updatedRegistration = await prisma.registration.update({
     where: { id: registrationId },
-    data: { 
+    data: {
       status: 'APPROVED',
       approvedAt: new Date()
     },
@@ -242,11 +289,35 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
       }
     }
   });
-  
-  return { 
-    success: true, 
-    message: 'Registration approved successfully', 
-    registration: updatedRegistration 
+
+  // Create notification for the user
+  try {
+    console.log('Creating approval notification for user:', {
+      userId: updatedRegistration.user.id,
+      eventTitle: updatedRegistration.event.title
+    });
+
+    const notification = await createNotification({
+      userId: updatedRegistration.user.id,
+      title: 'Registration Approved',
+      message: `Your registration for "${updatedRegistration.event.title}" has been approved!`,
+      type: 'REGISTRATION_APPROVED',
+      data: {
+        eventId: updatedRegistration.event.id,
+        eventTitle: updatedRegistration.event.title,
+        startDate: updatedRegistration.event.startDate
+      }
+    });
+
+    console.log('Successfully created approval notification:', notification);
+  } catch (notifError) {
+    console.error('Failed to create notification:', notifError);
+  }
+
+  return {
+    success: true,
+    message: 'Registration approved successfully',
+    registration: updatedRegistration
   };
 }
 
@@ -347,6 +418,29 @@ export async function rejectRegistration(eventId, registrationId, managerId, man
       }
     }
   });
+
+  // Create notification for the user
+  try {
+    console.log('Creating rejection notification for user:', {
+      userId: updatedRegistration.user.id,
+      eventTitle: updatedRegistration.event.title
+    });
+
+    const notification = await createNotification({
+      userId: updatedRegistration.user.id,
+      title: 'Registration Rejected',
+      message: `Your registration for "${updatedRegistration.event.title}" has been rejected.`,
+      type: 'REGISTRATION_REJECTED',
+      data: {
+        eventId: updatedRegistration.event.id,
+        eventTitle: updatedRegistration.event.title
+      }
+    });
+
+    console.log('Successfully created rejection notification:', notification);
+  } catch (notifError) {
+    console.error('Failed to create notification:', notifError);
+  }
 
   return {
     success: true,

@@ -275,6 +275,39 @@ export function emitCommentUpdate(comment, postId, eventId, type = 'manual') {
   ioInstance?.emit('comments:refresh', body);
 }
 
+/**
+ * Manual emitter for notifications
+ * @param {Object} notification
+ * @param {string} userId
+ * @param {string} type
+ */
+export function emitNotification(notification, userId, type = 'manual') {
+  const body = { type, userId, notification };
+  ioInstance?.emit('notification:new', body);
+
+  // Also emit for web push notifications
+  if (ioInstance) {
+    ioInstance.to(userId).emit('push:notification', {
+      title: notification.title,
+      body: notification.message,
+      icon: '/favicon.ico',
+      data: notification.data || {},
+      tag: notification.id,
+      requireInteraction: true
+    });
+  }
+}
+
+/**
+ * Manual emitter for user's notification count update
+ * @param {string} userId
+ * @param {number} count
+ */
+export function emitNotificationCountUpdate(userId, count) {
+  const body = { userId, count };
+  ioInstance?.emit('notification:count', body);
+}
+
 export default {
   initRealtime,
   getRealtimeStatus,

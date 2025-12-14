@@ -111,20 +111,30 @@ export const adminApproveEvent = async (req, res) => {
       },
     });
 
-    emitEventUpdate(updatedEvent, 'APPROVED');
+    try {
+      emitEventUpdate(updatedEvent, 'APPROVED');
+    } catch (emitErr) {
+      console.error('Error emitting event update:', emitErr);
+      // Continue with the response even if emit fails
+    }
 
-    // Create notification for the event creator
-    await createNotification({
-      userId: event.creator.id,
-      title: 'Event Approved',
-      message: `Your event "${event.title}" has been approved by an administrator.`,
-      type: 'EVENT_APPROVED',
-      data: {
-        eventId: event.id,
-        eventTitle: event.title,
-        reason: reason
-      }
-    });
+    try {
+      // Create notification for the event creator
+      await createNotification({
+        userId: event.creator.id,
+        title: 'Event Approved',
+        message: `Your event "${event.title}" has been approved by an administrator.`,
+        type: 'EVENT_APPROVED',
+        data: {
+          eventId: event.id,
+          eventTitle: event.title,
+          reason: reason
+        }
+      });
+    } catch (notificationErr) {
+      console.error('Error creating notification for event creator:', notificationErr);
+      // Continue with the response even if notification fails
+    }
 
     res.json({
       message: 'Event approved successfully',
@@ -181,20 +191,33 @@ export const adminRejectEvent = async (req, res) => {
       },
     });
 
-    emitEventUpdate(updatedEvent, 'REJECTED');
+    try {
+      emitEventUpdate(updatedEvent, 'REJECTED');
+    } catch (emitErr) {
+      console.error('Error emitting event update:', emitErr);
+      // Continue with the response even if emit fails
+    }
 
-    // Create notification for the event creator
-    await createNotification({
-      userId: event.creator.id,
-      title: 'Event Rejected',
-      message: `Your event "${event.title}" has been rejected by an administrator. Reason: ${reason}`,
-      type: 'EVENT_REJECTED',
-      data: {
-        eventId: event.id,
-        eventTitle: event.title,
-        reason: reason
-      }
-    });
+    try {
+      // Create notification for the event creator
+      await createNotification({
+        userId: event.creator.id,
+        title: 'Event Rejected',
+        message: `Your event "${event.title}" has been rejected by an administrator. Reason: ${reason}`,
+        type: 'EVENT_REJECTED',
+        data: {
+          eventId: event.id,
+          eventTitle: event.title,
+          reason: reason
+        }
+      });
+    } catch (notificationErr) {
+      console.error('Error creating notification for event creator:', notificationErr);
+      // Continue with the response even if notification fails
+    }
+
+    // Note: We don't send notifications to volunteers about rejected events
+    // as it's generally not necessary for them to know about rejected events
 
     res.json({
       message: 'Event rejected successfully',

@@ -90,8 +90,8 @@ export const registrationApi = {
   },
 
   getEventRegistrationCount: async (
-  eventId: string,
-  options?: { status?: string[] }
+    eventId: string,
+    options?: { status?: string[] }
   ): Promise<ApiResponse<{ count: number }>> => { // <--- đây là ApiResponse
     const params = new URLSearchParams();
     if (options?.status) params.append('status', options.status.join(','));
@@ -101,7 +101,7 @@ export const registrationApi = {
     const result = await apiCall<{ count: number }>(endpoint);
     return result; // trả về ApiResponse<{ count: number }>
   },
-  
+
   //REGISTRATION API FUNCTIONS
   // Register for an event
   registerForEvent: async (eventId: string, token: string): Promise<ApiResponse<any>> => {
@@ -138,7 +138,7 @@ export const registrationApi = {
     );
   },
 
-   rejectRegistration: async (
+  rejectRegistration: async (
     eventId: string,
     registrationId: string,
     token: string
@@ -181,7 +181,7 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     });
   },
-  
+
   // Register
   register: async (userData: any): Promise<ApiResponse<any>> => {
     return apiCall<any>('/auth/register', {
@@ -189,4 +189,38 @@ export const authApi = {
       body: JSON.stringify(userData),
     });
   },
+};
+
+// Notification API functions
+export const notificationApi = {
+  // Get current user's notifications
+  getNotifications: async (token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>('/users/me/notifications', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  },
+
+  // Mark notification as read
+  markAsRead: async (id: string, token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>(`/users/me/notifications/read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ notification_ids: [id] }),
+    });
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async (token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>('/users/me/notifications/read', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({}), // Empty body to mark all as read
+    });
+  }
 };
