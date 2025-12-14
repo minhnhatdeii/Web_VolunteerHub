@@ -1,4 +1,5 @@
 import prisma from '../db.js';
+import { createNotification } from './notification.service.js';
 
 /**
  * Register user for an event
@@ -18,20 +19,20 @@ export async function registerForEvent(userId, eventId) {
       status: true
     }
   });
-  
+
   if (!event) {
     return { error: 'Event not found', statusCode: 404 };
   }
-  
+
   // Check if event is approved and has space
   if (event.status !== 'APPROVED') {
     return { error: 'Event is not approved for registration', statusCode: 400 };
   }
-  
+
   if (event.currentParticipants >= event.maxParticipants) {
     return { error: 'Event is at maximum capacity', statusCode: 400 };
   }
-  
+
   // Check if user is already registered
   const existingRegistration = await prisma.registration.findFirst({
     where: {
@@ -39,11 +40,11 @@ export async function registerForEvent(userId, eventId) {
       eventId: eventId
     }
   });
-  
+
   if (existingRegistration) {
     return { error: 'User is already registered for this event', statusCode: 400 };
   }
-  
+
   // Create the registration with PENDING status
   const registration = await prisma.registration.create({
     data: {
@@ -71,7 +72,7 @@ export async function registerForEvent(userId, eventId) {
       }
     }
   });
-  
+
   // Update the event's current participant count
   await prisma.event.update({
     where: { id: eventId },
@@ -79,7 +80,30 @@ export async function registerForEvent(userId, eventId) {
       currentParticipants: { increment: 1 }
     }
   });
-  
+
+  // Notify the event manager about the new registration
+  const eventWithCreator = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: {
+      creatorId: true,
+      title: true
+    }
+  });
+
+  if (eventWithCreator) {
+    await createNotification({
+      userId: eventWithCreator.creatorId,
+      title: 'Đăng ký mới',
+      message: `${registration.user.firstName} ${registration.user.lastName} đã đăng ký sự kiện "${eventWithCreator.title}"`,
+      type: 'new_registration',
+      data: {
+        eventId: eventId,
+        eventTitle: eventWithCreator.title,
+        registrationId: registration.id
+      }
+    });
+  }
+
   return registration;
 }
 
@@ -97,30 +121,30 @@ export async function cancelRegistration(userId, eventId) {
       eventId: eventId
     }
   });
-  
+
   if (!registration) {
-    return { 
-      success: false, 
-      error: 'Registration not found', 
-      statusCode: 404 
+    return {
+      success: false,
+      error: 'Registration not found',
+      statusCode: 404
     };
   }
-  
+
   // Check if registration can be canceled (not attended or completed already)
   if (registration.status === 'ATTENDED' || registration.status === 'CANCELLED') {
-    return { 
-      success: false, 
-      error: 'Cannot cancel registration that has already been attended or cancelled', 
-      statusCode: 400 
+    return {
+      success: false,
+      error: 'Cannot cancel registration that has already been attended or cancelled',
+      statusCode: 400
     };
   }
-  
+
   // Update the registration status to CANCELLED
   await prisma.registration.update({
     where: { id: registration.id },
     data: { status: 'CANCELLED' }
   });
-  
+
   // Update the event's current participant count
   await prisma.event.update({
     where: { id: eventId },
@@ -128,10 +152,10 @@ export async function cancelRegistration(userId, eventId) {
       currentParticipants: { decrement: 1 }
     }
   });
-  
-  return { 
-    success: true, 
-    message: 'Registration canceled successfully' 
+
+  return {
+    success: true,
+    message: 'Registration canceled successfully'
   };
 }
 
@@ -162,7 +186,7 @@ export async function getUserRegistrations(userId) {
       appliedAt: 'desc'
     }
   });
-  
+
   return registrations;
 }
 
@@ -184,24 +208,24 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
       title: true
     }
   });
-  
+
   if (!event) {
-    return { 
-      success: false, 
-      error: 'Event not found', 
-      statusCode: 404 
+    return {
+      success: false,
+      error: 'Event not found',
+      statusCode: 404
     };
   }
-  
+
   // Only the event creator (manager) or an admin can approve registrations
   if (event.creatorId !== managerId && managerRole !== 'ADMIN') {
-    return { 
-      success: false, 
-      error: 'You do not have permission to approve this registration', 
-      statusCode: 403 
+    return {
+      success: false,
+      error: 'You do not have permission to approve this registration',
+      statusCode: 403
     };
   }
-  
+
   // Verify the registration exists and belongs to the event
   const registration = await prisma.registration.findFirst({
     where: {
@@ -209,19 +233,19 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
       eventId: eventId
     }
   });
-  
+
   if (!registration) {
-    return { 
-      success: false, 
-      error: 'Registration not found for this event', 
-      statusCode: 404 
+    return {
+      success: false,
+      error: 'Registration not found for this event',
+      statusCode: 404
     };
   }
-  
+
   // Update the registration status to APPROVED
   const updatedRegistration = await prisma.registration.update({
     where: { id: registrationId },
-    data: { 
+    data: {
       status: 'APPROVED',
       approvedAt: new Date()
     },
@@ -242,11 +266,24 @@ export async function approveRegistration(eventId, registrationId, managerId, ma
       }
     }
   });
-  
-  return { 
-    success: true, 
-    message: 'Registration approved successfully', 
-    registration: updatedRegistration 
+
+  // Create notification for the user whose registration was approved
+  await createNotification({
+    userId: updatedRegistration.user.id,
+    title: 'Đăng ký được duyệt',
+    message: `Đăng ký của bạn cho sự kiện "${updatedRegistration.event.title}" đã được duyệt!`,
+    type: 'registration_approved',
+    data: {
+      eventId: eventId,
+      eventTitle: updatedRegistration.event.title,
+      registrationId: registrationId
+    }
+  });
+
+  return {
+    success: true,
+    message: 'Registration approved successfully',
+    registration: updatedRegistration
   };
 }
 
@@ -345,6 +382,19 @@ export async function rejectRegistration(eventId, registrationId, managerId, man
           title: true
         }
       }
+    }
+  });
+
+  // Create notification for the user whose registration was rejected
+  await createNotification({
+    userId: updatedRegistration.user.id,
+    title: 'Đăng ký bị từ chối',
+    message: `Đăng ký của bạn cho sự kiện "${updatedRegistration.event.title}" đã bị từ chối.`,
+    type: 'registration_rejected',
+    data: {
+      eventId: eventId,
+      eventTitle: updatedRegistration.event.title,
+      registrationId: registrationId
     }
   });
 

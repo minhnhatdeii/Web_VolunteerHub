@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ZodError } from "zod";
 import { createClient } from '@supabase/supabase-js';
 import { emitEventUpdate } from '../realtime/index.js';
+import { createNotification } from '../services/notification.service.js';
 
 const prisma = new PrismaClient();
 
@@ -234,6 +235,25 @@ export const createEvent = async (req, res) => {
       },
     });
 
+    // Notify all admins about the new event pending approval
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      select: { id: true }
+    });
+
+    for (const admin of admins) {
+      await createNotification({
+        userId: admin.id,
+        title: 'Sự kiện mới chờ duyệt',
+        message: `Sự kiện "${event.title}" đã được tạo và đang chờ phê duyệt.`,
+        type: 'event_submitted',
+        data: {
+          eventId: event.id,
+          eventTitle: event.title
+        }
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: event,
@@ -459,6 +479,25 @@ export const submitEventForApproval = async (req, res) => {
       where: { id },
       data: { status: 'PENDING_APPROVAL' }
     });
+
+    // Notify all admins about the event submission
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      select: { id: true }
+    });
+
+    for (const admin of admins) {
+      await createNotification({
+        userId: admin.id,
+        title: 'Sự kiện chờ duyệt',
+        message: `Sự kiện "${event.title}" đã được gửi để phê duyệt.`,
+        type: 'event_submitted',
+        data: {
+          eventId: event.id,
+          eventTitle: event.title
+        }
+      });
+    }
 
     res.json({
       success: true,

@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import NotificationPopover from "@/components/notification-popover";
 
 type AppUser = {
   id: string;
@@ -100,36 +101,39 @@ export default function Navbar() {
 
           <div className="hidden md:flex gap-3 items-center">
             {!hydrated ? null : isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 hover:opacity-80 transition">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={user?.avatarUrl || "/diverse-user-avatars.png"} alt={displayName} />
-                      <AvatarFallback>{initial}</AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium">{displayName || "Tài khoản"}</p>
-                      <p className="text-xs text-muted-foreground">{user?.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={dashboardHref}>Dashboard</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">Hồ sơ</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/events">Sự kiện của tôi</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>Đăng xuất</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                <NotificationPopover />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 hover:opacity-80 transition">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={user?.avatarUrl || "/diverse-user-avatars.png"} alt={displayName} />
+                        <AvatarFallback>{initial}</AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium">{displayName || "Tài khoản"}</p>
+                        <p className="text-xs text-muted-foreground">{user?.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href={dashboardHref}>Dashboard</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">Hồ sơ</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/events">Sự kiện của tôi</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>Đăng xuất</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link href="/login">
@@ -162,15 +166,18 @@ export default function Navbar() {
               isAuthenticated ? (
                 <>
                   <div className="pt-3 border-t border-border">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.avatarUrl || "/diverse-user-avatars.png"} alt={displayName} />
-                        <AvatarFallback>{initial}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{displayName || "Tài khoản"}</p>
-                        <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user?.avatarUrl || "/diverse-user-avatars.png"} alt={displayName} />
+                          <AvatarFallback>{initial}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{displayName || "Tài khoản"}</p>
+                          <p className="text-xs text-muted-foreground">{user?.email}</p>
+                        </div>
                       </div>
+                      <NotificationPopover />
                     </div>
                   </div>
                   <Link href={dashboardHref} className="block">

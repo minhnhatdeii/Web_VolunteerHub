@@ -90,8 +90,8 @@ export const registrationApi = {
   },
 
   getEventRegistrationCount: async (
-  eventId: string,
-  options?: { status?: string[] }
+    eventId: string,
+    options?: { status?: string[] }
   ): Promise<ApiResponse<{ count: number }>> => { // <--- đây là ApiResponse
     const params = new URLSearchParams();
     if (options?.status) params.append('status', options.status.join(','));
@@ -101,7 +101,7 @@ export const registrationApi = {
     const result = await apiCall<{ count: number }>(endpoint);
     return result; // trả về ApiResponse<{ count: number }>
   },
-  
+
   //REGISTRATION API FUNCTIONS
   // Register for an event
   registerForEvent: async (eventId: string, token: string): Promise<ApiResponse<any>> => {
@@ -138,7 +138,7 @@ export const registrationApi = {
     );
   },
 
-   rejectRegistration: async (
+  rejectRegistration: async (
     eventId: string,
     registrationId: string,
     token: string
@@ -181,12 +181,56 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     });
   },
-  
+
   // Register
   register: async (userData: any): Promise<ApiResponse<any>> => {
     return apiCall<any>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
+    });
+  },
+};
+
+// Notification API functions
+export const notificationApi = {
+  // Get user notifications
+  getNotifications: async (
+    token: string,
+    options?: { limit?: number; offset?: number; unreadOnly?: boolean }
+  ): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    if (options?.unreadOnly) params.append('unreadOnly', 'true');
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/users/me/notifications?${queryString}` : '/users/me/notifications';
+
+    return apiCall<any>(endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // Get unread notification count
+  getUnreadCount: async (token: string): Promise<ApiResponse<{ count: number }>> => {
+    return apiCall<{ count: number }>('/users/me/notifications/unread-count', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // Mark a notification as read
+  markAsRead: async (token: string, notificationId: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>(`/users/me/notifications/${notificationId}/read`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // Mark all notifications as read
+  markAllAsRead: async (token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>('/users/me/notifications/read-all', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
     });
   },
 };

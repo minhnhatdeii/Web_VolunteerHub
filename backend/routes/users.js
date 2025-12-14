@@ -2,8 +2,12 @@ import express from 'express';
 import { authenticateToken, authorizeRole, requireOwnResource } from '../middleware/auth.js';
 import { getMe, updateMe, uploadAvatar, getUserById, lockUser, updateUserById } from '../controllers/users.controller.js';
 import { supabase } from '../config/supabase.js';
+import notificationRoutes from './notifications.js';
 
 const router = express.Router();
+
+// Mount notification routes under /me/notifications
+router.use('/me/notifications', notificationRoutes);
 
 /**
  * Get current user profile
