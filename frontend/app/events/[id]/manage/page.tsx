@@ -60,6 +60,11 @@ export default function EventManagePage() {
     },
   })
 
+  const formatCategory = (cat?: string) => {
+    if (!cat) return "Sự kiện"
+    return cat.charAt(0).toUpperCase() + cat.slice(1)
+  }
+
   const handleApproveRegistration = async (registrationId: string) => {
     try {
       const token = localStorage.getItem("accessToken") || ""
@@ -244,7 +249,7 @@ export default function EventManagePage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted">Danh mục</p>
-                      <p className="font-semibold">{event.category}</p>
+                      <p className="font-semibold">{formatCategory(event.category)}</p>
                     </div>
                   </div>
                 )}

@@ -1,19 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Heart, MessageCircle, Share2, Send, ImageIcon } from "lucide-react";
-import { postApi } from "@/lib/api";
 
-type Post = {
+interface Comment {
   id: string;
   author: {
     name: string;
     avatar: string;
-    role?: string;
+  };
+  content: string;
+  timestamp: string;
+}
+
+interface Post {
+  id: string;
+  author: {
+    name: string;
+    avatar: string;
+    role: string;
   };
   content: string;
   image?: string;
@@ -21,143 +30,123 @@ type Post = {
   likes: number;
   comments: Comment[];
   isLiked: boolean;
-};
+}
 
-type Comment = {
-  id: string;
-  author: {
-    name: string;
-    avatar: string;
-  };
-  content: string;
-  timestamp: string;
-};
+export default function EventDiscussionFeed() {
+  const [posts, setPosts] = useState<Post[]>([
+    {
+      id: "1",
+      author: {
+        name: "Nguyễn Văn A",
+        avatar: "/placeholder.svg",
+        role: "Organizer",
+      },
+      content:
+        "Chào mừng mọi người đến với sự kiện! Hãy cùng trao đổi và chia sẻ ý tưởng về việc làm sạch công viên. Ai có kinh nghiệm về phân loại rác thải thì chia sẻ nhé! 🌱",
+      timestamp: "2 giờ trước",
+      likes: 12,
+      comments: [
+        {
+          id: "c1",
+          author: {
+            name: "Trần Thị B",
+            avatar: "/placeholder.svg",
+          },
+          content: "Mình đã tham gia sự kiện tương tự rồi, có kinh nghiệm về phân loại nhựa và giấy!",
+          timestamp: "1 giờ trước",
+        },
+      ],
+      isLiked: false,
+    },
+    {
+      id: "2",
+      author: {
+        name: "Lê Văn C",
+        avatar: "/placeholder.svg",
+        role: "Volunteer",
+      },
+      content: "Có ai ở quận 1 muốn đi cùng không? Mình có thể đón mọi người trên đường đi!",
+      timestamp: "5 giờ trước",
+      likes: 8,
+      comments: [],
+      isLiked: true,
+    },
+    {
+      id: "3",
+      author: {
+        name: "Phạm Thị D",
+        avatar: "/placeholder.svg",
+        role: "Volunteer",
+      },
+      content: "Mình sẽ mang theo găng tay và túi rác dự phòng. Ai cần thì nhắn mình nhé!",
+      image: "/placeholder.svg",
+      timestamp: "1 ngày trước",
+      likes: 15,
+      comments: [
+        {
+          id: "c2",
+          author: {
+            name: "Hoàng Văn E",
+            avatar: "/placeholder.svg",
+          },
+          content: "Cảm ơn bạn! Mình sẽ liên hệ với bạn trước sự kiện nhé!",
+          timestamp: "20 giờ trước",
+        },
+        {
+          id: "c3",
+          author: {
+            name: "Nguyễn Thị F",
+            avatar: "/placeholder.svg",
+          },
+          content: "Mình cũng cần mượn găng tay được không bạn?",
+          timestamp: "18 giờ trước",
+        },
+      ],
+      isLiked: false,
+    },
+  ]);
 
-type Props = {
-  eventId: string;
-};
-
-export default function EventDiscussionFeed({ eventId }: Props) {
-  const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
   const [activeComments, setActiveComments] = useState<{ [key: string]: string }>({});
   const [showComments, setShowComments] = useState<{ [key: string]: boolean }>({});
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>("Bạn");
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem("accessToken");
-      const storedUser = localStorage.getItem("user");
-      if (storedToken) setAccessToken(storedToken);
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        const full = [parsed.firstName, parsed.lastName].filter(Boolean).join(" ").trim() || parsed.name || parsed.email;
-        if (full) setUserName(full);
-      }
-    } catch (_) {
-      // ignore
-    }
-  }, []);
-
-  const mapPosts = (items: any[]): Post[] =>
-    items.map((p) => ({
-      id: p.id,
-      author: {
-        name: [p.author?.firstName, p.author?.lastName].filter(Boolean).join(" ").trim() || p.author?.name || "Ẩn danh",
-        avatar: p.author?.avatarUrl || "/placeholder.svg",
-        role: p.author?.role || "",
-      },
-      content: p.content || "",
-      image: p.imageUrl || undefined,
-      timestamp: new Date(p.createdAt || Date.now()).toLocaleString("vi-VN"),
-      likes: p._count?.likes ?? p.likes ?? 0,
-      comments:
-        (p.comments || []).map((c: any) => ({
-          id: c.id,
-          author: {
-            name: [c.author?.firstName, c.author?.lastName].filter(Boolean).join(" ").trim() || "Ẩn danh",
-            avatar: c.author?.avatarUrl || "/placeholder.svg",
-          },
-          content: c.content || "",
-          timestamp: new Date(c.createdAt || Date.now()).toLocaleString("vi-VN"),
-        })) || [],
-      isLiked: false,
-    }));
-
-  const loadPosts = async () => {
-    try {
-      setLoading(true);
-      const res = await postApi.getEventPosts(eventId, { limit: 50 });
-      const items = (res?.data?.items || res?.data?.data || res?.data || []) as any[];
-      setPosts(mapPosts(items));
-    } catch (err) {
-      console.error("Failed to load posts", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (eventId) loadPosts();
-  }, [eventId]);
-
-  const handleLike = async (postId: string) => {
-    if (!accessToken) {
-      alert("Vui lòng đăng nhập để thích bài viết.");
-      return;
-    }
+  const handleLike = (postId: string) => {
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId
-          ? { ...post, isLiked: !post.isLiked, likes: post.isLiked ? post.likes - 1 : post.likes + 1 }
-          : post,
-      ),
+          ? {
+              ...post,
+              isLiked: !post.isLiked,
+              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
+            }
+          : post
+      )
     );
-    try {
-      await postApi.toggleLike(postId, accessToken);
-    } catch (err) {
-      console.error("Toggle like failed", err);
-    }
   };
 
-  const handleAddPost = async () => {
-    if (!newPost.trim()) return;
-    if (!accessToken) {
-      alert("Vui lòng đăng nhập để đăng bài.");
-      return;
-    }
-    try {
-      const res = await postApi.createPost(eventId, { content: newPost }, accessToken);
-      const p: any = res?.data || {};
-      const mapped = mapPosts([p])[0] || {
+  const handleAddPost = () => {
+    if (newPost.trim()) {
+      const post: Post = {
         id: Date.now().toString(),
-        author: { name: userName, avatar: "/placeholder.svg" },
+        author: {
+          name: "Bạn",
+          avatar: "/placeholder.svg",
+          role: "Volunteer",
+        },
         content: newPost,
-        timestamp: new Date().toLocaleString("vi-VN"),
+        timestamp: "Vừa xong",
         likes: 0,
         comments: [],
         isLiked: false,
       };
-      setPosts((prev) => [mapped, ...prev]);
+      setPosts((prev) => [post, ...prev]);
       setNewPost("");
-    } catch (err) {
-      console.error("Failed to create post", err);
-      alert("Đăng bài thất bại, vui lòng thử lại.");
     }
   };
 
-  const handleAddComment = async (postId: string) => {
+  const handleAddComment = (postId: string) => {
     const commentContent = activeComments[postId];
-    if (!commentContent?.trim()) return;
-    if (!accessToken) {
-      alert("Vui lòng đăng nhập để bình luận.");
-      return;
-    }
-    try {
-      const res = await postApi.addComment(postId, commentContent, accessToken);
-      const c: any = res?.data || {};
+    if (commentContent?.trim()) {
       setPosts((prev) =>
         prev.map((post) => {
           if (post.id === postId) {
@@ -166,27 +155,21 @@ export default function EventDiscussionFeed({ eventId }: Props) {
               comments: [
                 ...post.comments,
                 {
-                  id: c.id || Date.now().toString(),
+                  id: Date.now().toString(),
                   author: {
-                    name:
-                      [c.author?.firstName, c.author?.lastName].filter(Boolean).join(" ").trim() ||
-                      c.author?.name ||
-                      userName,
-                    avatar: c.author?.avatarUrl || "/placeholder.svg",
+                    name: "Bạn",
+                    avatar: "/placeholder.svg",
                   },
-                  content: c.content || commentContent,
-                  timestamp: new Date(c.createdAt || Date.now()).toLocaleString("vi-VN"),
+                  content: commentContent,
+                  timestamp: "Vừa xong",
                 },
               ],
             };
           }
           return post;
-        }),
+        })
       );
       setActiveComments({ ...activeComments, [postId]: "" });
-    } catch (err) {
-      console.error("Add comment failed", err);
-      alert("Bình luận thất bại, vui lòng thử lại.");
     }
   };
 
@@ -196,11 +179,12 @@ export default function EventDiscussionFeed({ eventId }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Create Post Card */}
       <Card className="p-6">
         <div className="flex gap-4">
           <Avatar className="h-10 w-10">
             <AvatarImage src="/placeholder.svg" alt="Your avatar" />
-            <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>B</AvatarFallback>
           </Avatar>
           <div className="flex-1 space-y-3">
             <Textarea
@@ -212,7 +196,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="sm" className="text-muted-foreground">
                 <ImageIcon className="h-4 w-4 mr-2" />
-                Thêm ảnh (chưa hỗ trợ)
+                Thêm ảnh
               </Button>
               <Button onClick={handleAddPost} disabled={!newPost.trim()}>
                 <Send className="h-4 w-4 mr-2" />
@@ -223,11 +207,11 @@ export default function EventDiscussionFeed({ eventId }: Props) {
         </div>
       </Card>
 
-      {loading && <p className="text-muted text-sm">Đang tải thảo luận...</p>}
-
+      {/* Posts Feed */}
       <div className="space-y-4">
         {posts.map((post) => (
           <Card key={post.id} className="p-6">
+            {/* Post Header */}
             <div className="flex items-start gap-4 mb-4">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={post.author.avatar || "/placeholder.svg"} alt={post.author.name} />
@@ -237,13 +221,16 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                 <div className="flex items-center gap-2">
                   <p className="font-semibold">{post.author.name}</p>
                   {post.author.role === "Organizer" && (
-                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">Tổ chức</span>
+                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                      Tổ chức
+                    </span>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">{post.timestamp}</p>
               </div>
             </div>
 
+            {/* Post Content */}
             <div className="mb-4">
               <p className="text-base leading-relaxed mb-3">{post.content}</p>
               {post.image && (
@@ -255,6 +242,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
               )}
             </div>
 
+            {/* Post Actions */}
             <div className="flex items-center gap-6 pt-4 border-t">
               <button
                 onClick={() => handleLike(post.id)}
@@ -278,6 +266,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
               </button>
             </div>
 
+            {/* Comments Section */}
             {showComments[post.id] && (
               <div className="mt-4 pt-4 border-t space-y-4">
                 {post.comments.map((comment) => (
@@ -296,10 +285,11 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                   </div>
                 ))}
 
+                {/* Add Comment */}
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="/placeholder.svg" alt="Your avatar" />
-                    <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>B</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 flex gap-2">
                     <input

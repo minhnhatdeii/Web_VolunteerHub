@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import NotificationPopover from "@/components/notification-popover";
+import { userApi } from "@/lib/api";
 
 type AppUser = {
   id: string;
@@ -33,8 +34,8 @@ export default function Navbar() {
 
   useEffect(() => {
     try {
-      const u = localStorage.getItem("user");
       const at = localStorage.getItem("accessToken");
+      const u = localStorage.getItem("user");
       if (u) setUser(JSON.parse(u));
       if (at) setAccessToken(at);
     } catch (_) {
@@ -44,7 +45,48 @@ export default function Navbar() {
     }
   }, []);
 
-  const isAuthenticated = !!user && !!accessToken;
+  // Rehydrate token when storage changes or window gains focus (handles login in other tabs / same tab without reload)
+  useEffect(() => {
+    const syncToken = () => {
+      try {
+        const at = localStorage.getItem("accessToken");
+        const u = localStorage.getItem("user");
+        if (u) setUser(JSON.parse(u));
+        setAccessToken(at);
+      } catch (_) {
+        // ignore
+      }
+    };
+    window.addEventListener("storage", syncToken);
+    window.addEventListener("focus", syncToken);
+    return () => {
+      window.removeEventListener("storage", syncToken);
+      window.removeEventListener("focus", syncToken);
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!accessToken) return;
+      try {
+        const res = await userApi.getProfile(accessToken);
+        if (res?.data) {
+          setUser(res.data as AppUser);
+          try {
+            localStorage.setItem("user", JSON.stringify(res.data));
+          } catch (_) {
+            // ignore storage write
+          }
+        }
+      } catch (err) {
+        console.error("Navbar: failed to load profile", err);
+        // keep existing user if any
+      }
+    };
+    fetchProfile();
+  }, [accessToken]);
+
+  const isAuthenticated = !!accessToken && !!user;
 
   const dashboardHref = useMemo(() => {
     const role = user?.role?.toLowerCase();
@@ -106,8 +148,8 @@ export default function Navbar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 hover:opacity-80 transition">
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={user?.avatarUrl || "/diverse-user-avatars.png"} alt={displayName} />
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={displayName} />
                         <AvatarFallback>{initial}</AvatarFallback>
                       </Avatar>
                     </button>
@@ -168,8 +210,8 @@ export default function Navbar() {
                   <div className="pt-3 border-t border-border">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={user?.avatarUrl || "/diverse-user-avatars.png"} alt={displayName} />
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={displayName} />
                           <AvatarFallback>{initial}</AvatarFallback>
                         </Avatar>
                         <div>

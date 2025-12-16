@@ -1,36 +1,161 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import { Calendar, Users, Heart, LogOut, Settings, User } from "lucide-react"
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
+import { Calendar, Users, Heart, LogOut, Settings, User } from "lucide-react";
+import { registrationApi, userApi } from "@/lib/api";
+
+type RegistrationWithEvent = {
+  id: string;
+  status: string;
+  appliedAt: string;
+  event: {
+    id: string;
+    title: string;
+    startDate: string;
+    location: string;
+    status: string;
+    thumbnailUrl?: string;
+  };
+};
 
 export default function VolunteerDashboard() {
-  const [user] = useState({ name: "Nguyễn Văn A", email: "volunteer@test.com" })
+  const [user, setUser] = useState<{ id: string; name: string; email: string; role?: string }>({
+    id: "",
+    name: "",
+    email: "",
+    role: "",
+  });
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [registrations, setRegistrations] = useState<RegistrationWithEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // hydrate from localStorage
+  useEffect(() => {
+    try {
+      const storedToken = localStorage.getItem("accessToken");
+      const storedUser = localStorage.getItem("user");
+      if (storedToken) setAccessToken(storedToken);
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        const fullName =
+          [parsed.firstName, parsed.lastName].filter(Boolean).join(" ").trim() ||
+          parsed.name ||
+          parsed.email ||
+          "";
+        setUser({ id: parsed.id, name: fullName, email: parsed.email, role: parsed.role });
+      }
+    } catch (_) {
+      // ignore
+    }
+  }, []);
+
+  // sync auth on storage/focus
+  useEffect(() => {
+    const syncAuth = () => {
+      try {
+        const storedToken = localStorage.getItem("accessToken");
+        const storedUser = localStorage.getItem("user");
+        if (storedToken) setAccessToken(storedToken);
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          const fullName =
+            [parsed.firstName, parsed.lastName].filter(Boolean).join(" ").trim() ||
+            parsed.name ||
+            parsed.email ||
+            "";
+          setUser({ id: parsed.id, name: fullName, email: parsed.email, role: parsed.role });
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("focus", syncAuth);
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("focus", syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!accessToken) return;
+      try {
+        const res = await userApi.getProfile(accessToken);
+        const data = res?.data;
+        if (data) {
+          const fullName =
+            [data.firstName, data.lastName].filter(Boolean).join(" ").trim() ||
+            data.name ||
+            data.email ||
+            "";
+          setUser({
+            id: data.id || user.id,
+            name: fullName,
+            email: data.email || user.email,
+            role: data.role || user.role,
+          });
+          try {
+            localStorage.setItem("user", JSON.stringify(data));
+          } catch (_) {
+            // ignore
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+      }
+    };
+    loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!accessToken) {
+        setLoading(false);
+        return;
+      }
+      try {
+        setLoading(true);
+        const res = await registrationApi.getMyRegistrations(accessToken);
+        if (res?.data) {
+          setRegistrations(res.data as RegistrationWithEvent[]);
+        }
+      } catch (err) {
+        console.error("Failed to load registrations:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [accessToken]);
+
+  const totalEvents = registrations.length;
+  const approvedEvents = registrations.filter((r) => r.status === "APPROVED").length;
+  const favoriteEvents = 0; // chưa có API yêu thích
 
   const stats = [
-    { label: "Sự kiện đã tham gia", value: 5, icon: Calendar },
-    { label: "Giờ tình nguyện", value: 24, icon: Users },
-    { label: "Sự kiện yêu thích", value: 3, icon: Heart },
-  ]
+    { label: "Sự kiện đã tham gia", value: totalEvents, icon: Calendar },
+    { label: "Giờ tình nguyện", value: approvedEvents * 4, icon: Users }, // giả định 4h/sự kiện
+    { label: "Sự kiện yêu thích", value: favoriteEvents, icon: Heart },
+  ];
 
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: "Dọn dẹp công viên thành phố",
-      date: "15/11/2024",
-      status: "approved",
-      image: "/sunny-city-park.png",
-    },
-    {
-      id: 2,
-      title: "Dạy kèm cho trẻ em vùng sâu",
-      date: "20/11/2024",
-      status: "pending",
-      image: "/tutoring-session.png",
-    },
-  ]
+  const upcomingEvents = useMemo(() => {
+    return registrations
+      .filter((r) => r.event?.startDate && new Date(r.event.startDate) > new Date())
+      .map((r) => ({
+        id: r.event.id,
+        title: r.event.title,
+        date: new Date(r.event.startDate).toLocaleDateString("vi-VN"),
+        status: r.status?.toLowerCase(),
+        image: r.event.thumbnailUrl || "/placeholder.svg",
+        location: r.event.location,
+      }))
+      .slice(0, 5);
+  }, [registrations]);
 
   return (
     <>
@@ -41,7 +166,7 @@ export default function VolunteerDashboard() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl font-bold">Dashboard Tình nguyện viên</h1>
-              <p className="text-muted mt-2">Chào mừng, {user.name}!</p>
+              <p className="text-muted mt-2">Chào mừng, {user.name || "bạn"}!</p>
             </div>
             <div className="flex gap-4">
               <Link href="/profile" className="p-2 hover:bg-white rounded-lg transition-colors">
@@ -59,7 +184,7 @@ export default function VolunteerDashboard() {
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {stats.map((stat, idx) => {
-              const Icon = stat.icon
+              const Icon = stat.icon;
               return (
                 <div key={idx} className="card-base p-6">
                   <div className="flex items-center justify-between">
@@ -70,7 +195,7 @@ export default function VolunteerDashboard() {
                     <Icon className="text-accent" size={40} />
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
 
@@ -80,6 +205,10 @@ export default function VolunteerDashboard() {
               <div className="card-base p-8 mb-8">
                 <h2 className="text-2xl font-bold mb-6">Sự kiện sắp diễn ra</h2>
                 <div className="space-y-4">
+                  {loading && <p className="text-muted">Đang tải...</p>}
+                  {!loading && upcomingEvents.length === 0 && (
+                    <p className="text-muted">Bạn chưa có sự kiện sắp diễn ra.</p>
+                  )}
                   {upcomingEvents.map((event) => (
                     <div
                       key={event.id}
@@ -115,12 +244,14 @@ export default function VolunteerDashboard() {
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="font-semibold text-blue-900">Đăng ký được duyệt</p>
                     <p className="text-sm text-blue-700 mt-1">
-                      Đăng ký của bạn cho sự kiện "Dọn dẹp công viên" đã được duyệt!
+                      Đăng ký của bạn cho các sự kiện sẽ hiển thị tại đây khi có trạng thái mới.
                     </p>
                   </div>
                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p className="font-semibold text-green-900">Sự kiện mới</p>
-                    <p className="text-sm text-green-700 mt-1">Có sự kiện mới phù hợp với sở thích của bạn</p>
+                    <p className="text-sm text-green-700 mt-1">
+                      Các sự kiện mới phù hợp sẽ được cập nhật khi có dữ liệu.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -133,18 +264,18 @@ export default function VolunteerDashboard() {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-muted">Tên</p>
-                    <p className="font-semibold">{user.name}</p>
+                    <p className="font-semibold">{user.name || "Người dùng"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted">Email</p>
-                    <p className="font-semibold">{user.email}</p>
+                    <p className="font-semibold">{user.email || "Đang cập nhật"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted">Vai trò</p>
                     <p className="font-semibold">Tình nguyện viên</p>
                   </div>
                 </div>
-                <Link href="/profile" className="w-full btn-primary mt-6">
+                <Link href="/profile" className="block w-full btn-primary mt-6 text-center">
                   Chỉnh sửa hồ sơ
                 </Link>
               </div>
@@ -154,5 +285,5 @@ export default function VolunteerDashboard() {
       </main>
       <Footer />
     </>
-  )
+  );
 }

@@ -34,8 +34,11 @@ export function useEventRealtime(
     if (!eventId) return;
 
     const socket = io(`${WS_BASE_URL}/events/${eventId}`, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // allow polling fallback if ws upgrade fails
       path: WS_PATH,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 10000,
     });
 
     socketRef.current = socket;
@@ -69,8 +72,11 @@ export function useEventsRefresh(onRefresh?: RefreshHandler) {
 
   useEffect(() => {
     const socket = io(WS_BASE_URL, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // allow polling fallback
       path: WS_PATH,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      timeout: 10000,
     });
     socketRef.current = socket;
 

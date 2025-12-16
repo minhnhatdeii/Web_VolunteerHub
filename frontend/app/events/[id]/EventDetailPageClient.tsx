@@ -19,6 +19,47 @@ export default function EventDetailPageClient({ params }: { params: { id: string
   const [isRegistered, setIsRegistered] = useState(false);
   const [volunteers, setVolunteers] = useState(0);
 
+  const defaults = useMemo(
+    () => ({
+      title: "Community Cleanup Drive",
+      description:
+        "Join us for a community cleanup drive where we will work together to clean and beautify Central Park. This is a great opportunity to make a direct impact on our local environment while meeting other passionate volunteers.",
+      fullDescription:
+        "This event brings together volunteers from all walks of life to make a tangible difference in our community. We will be cleaning up trash, planting trees, and restoring natural habitats. No prior experience is needed, just bring enthusiasm and a willingness to help!",
+      category: "Environment",
+      thumbnailUrl: "/placeholder.svg",
+      location: "Đang cập nhật",
+      startDate: new Date().toISOString(),
+      endDate: new Date().toISOString(),
+      requirements: [
+        "Must be 16 years or older",
+        "Wear comfortable clothing and shoes",
+        "Bring water and snacks",
+        "Be prepared to work outdoors for 4 hours",
+      ],
+      currentParticipants: 0,
+      maxParticipants: 50,
+      creator: {
+        firstName: "Ban tổ chức",
+        lastName: "",
+        avatarUrl: "",
+        id: "",
+      },
+      tags: ["Environment", "Outdoor", "Community"],
+      recentVolunteers: [
+        { name: "Trần Thị B", avatar: "/volunteer-1.jpg" },
+        { name: "Lê Văn C", avatar: "/volunteer-2.jpg" },
+        { name: "Phạm Thị D", avatar: "/volunteer-3.jpg" },
+      ],
+    }),
+    []
+  );
+
+  const formatCategory = (cat?: string) => {
+    if (!cat) return "Sự kiện";
+    return cat.charAt(0).toUpperCase() + cat.slice(1);
+  };
+
   const fetchEvent = useCallback(async () => {
     try {
       setLoading(true);
@@ -47,6 +88,35 @@ export default function EventDetailPageClient({ params }: { params: { id: string
   useEffect(() => {
     fetchEvent();
   }, [fetchEvent]);
+
+  const mergedEvent = useMemo(() => {
+    return {
+      ...defaults,
+      ...event,
+      creator: {
+        ...defaults.creator,
+        ...(event?.creator || {}),
+      },
+    };
+  }, [defaults, event]);
+
+  const tags = useMemo(() => {
+    const evtTags = (event as any)?.tags;
+    if (Array.isArray(evtTags) && evtTags.length > 0) return evtTags;
+    return defaults.tags;
+  }, [event, defaults]);
+
+  const requirements = useMemo(() => {
+    const reqs = (event as any)?.requirements;
+    if (Array.isArray(reqs) && reqs.length > 0) return reqs;
+    return defaults.requirements;
+  }, [event, defaults]);
+
+  const recentVolunteers = useMemo(() => {
+    const rv = (event as any)?.recentVolunteers;
+    if (Array.isArray(rv) && rv.length > 0) return rv;
+    return defaults.recentVolunteers;
+  }, [event, defaults]);
 
   const handleRegister = async () => {
     if (!event) return;
@@ -90,12 +160,7 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     }
   };
 
-  const category = event?.category || "Sự kiện";
-  const tags = useMemo(() => {
-    if (!event) return [];
-    const base = [event.category].filter(Boolean);
-    return base;
-  }, [event]);
+  const category = formatCategory(mergedEvent.category);
 
   if (loading || !event) {
     return (
@@ -111,8 +176,8 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     );
   }
 
-  const progress = event.maxParticipants
-    ? Math.min(100, (volunteers / event.maxParticipants) * 100)
+  const progress = mergedEvent.maxParticipants
+    ? Math.min(100, (volunteers / mergedEvent.maxParticipants) * 100)
     : 0;
 
   return (
@@ -126,8 +191,8 @@ export default function EventDetailPageClient({ params }: { params: { id: string
           </Link>
 
           <img
-            src={event.thumbnailUrl || "/placeholder.svg"}
-            alt={event.title}
+            src={mergedEvent.thumbnailUrl || "/placeholder.svg"}
+            alt={mergedEvent.title}
             className="w-full h-96 object-cover rounded-lg mb-8"
           />
 
@@ -139,18 +204,18 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                 </span>
               </div>
 
-              <h1 className="text-4xl font-bold mb-4">{event.title}</h1>
+              <h1 className="text-4xl font-bold mb-4">{mergedEvent.title}</h1>
 
               <div className="space-y-3 mb-8 text-muted-foreground">
                 <p className="text-lg">
-                  📅 {new Date(event.startDate).toLocaleDateString("vi-VN")}{" "}
-                  {new Date(event.startDate).toLocaleTimeString("vi-VN")}
+                  📅 {new Date(mergedEvent.startDate).toLocaleDateString("vi-VN")}{" "}
+                  {new Date(mergedEvent.startDate).toLocaleTimeString("vi-VN")}
                 </p>
                 <p className="text-lg">
-                  ⏰ {new Date(event.startDate).toLocaleTimeString("vi-VN")} -{" "}
-                  {new Date(event.endDate).toLocaleTimeString("vi-VN")}
+                  ⏰ {new Date(mergedEvent.startDate).toLocaleTimeString("vi-VN")} -{" "}
+                  {new Date(mergedEvent.endDate).toLocaleTimeString("vi-VN")}
                 </p>
-                <p className="text-lg">📍 {event.location}</p>
+                <p className="text-lg">📍 {mergedEvent.location}</p>
               </div>
 
               <Tabs defaultValue="about" className="mb-8">
@@ -164,7 +229,9 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                 <TabsContent value="about" className="mt-6 space-y-4">
                   <div>
                     <h3 className="font-bold text-lg mb-2">Mô tả chi tiết</h3>
-                    <p className="text-muted-foreground leading-relaxed">{event.description}</p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {mergedEvent.description || mergedEvent.fullDescription}
+                    </p>
                   </div>
                   {tags.length > 0 && (
                     <div>
@@ -175,7 +242,7 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                             key={i}
                             className="text-xs font-semibold text-secondary bg-secondary/10 px-3 py-1 rounded-full"
                           >
-                            {tag}
+                            {formatCategory(tag)}
                           </span>
                         ))}
                       </div>
@@ -184,9 +251,9 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                 </TabsContent>
 
                 <TabsContent value="requirements" className="mt-6">
-                  {Array.isArray((event as any).requirements) ? (
+                  {Array.isArray(requirements) ? (
                     <ul className="space-y-3">
-                      {(event as any).requirements.map((req: string, i: number) => (
+                      {requirements.map((req: string, i: number) => (
                         <li key={i} className="flex items-start gap-3">
                           <span className="text-primary font-bold">✓</span>
                           <span className="leading-relaxed">{req}</span>
@@ -209,14 +276,14 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                         />
                       </div>
                       <p className="text-sm font-semibold">
-                        {volunteers} / {event.maxParticipants} tình nguyện viên
+                        {volunteers} / {mergedEvent.maxParticipants} tình nguyện viên
                       </p>
                     </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="discussion" className="mt-6">
-                  <EventDiscussionFeed />
+                  {event?.id && <EventDiscussionFeed eventId={event.id} />}
                 </TabsContent>
               </Tabs>
 
@@ -226,10 +293,10 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground mb-1">Được tổ chức bởi</p>
                     <p className="font-bold text-xl mb-2">
-                      {event.creator?.firstName} {event.creator?.lastName}
+                      {mergedEvent.creator?.firstName} {mergedEvent.creator?.lastName}
                     </p>
                     <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                      Liên hệ qua email: {event.creator?.id}
+                      Liên hệ qua email: {mergedEvent.creator?.id || "Đang cập nhật"}
                     </p>
                     <Button variant="outline" className="mt-4 bg-transparent">
                       Theo dõi
@@ -281,17 +348,38 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                 <h3 className="font-bold text-lg mb-4">Người tổ chức</h3>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={event.creator?.avatarUrl || "/placeholder.svg"} alt="Organizer" />
+                    <AvatarImage src={mergedEvent.creator?.avatarUrl || "/placeholder.svg"} alt="Organizer" />
                     <AvatarFallback>
-                      {(event.creator?.firstName || "O").charAt(0).toUpperCase()}
+                      {(mergedEvent.creator?.firstName || "O").charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="text-sm font-medium">
-                      {event.creator?.firstName} {event.creator?.lastName}
+                      {mergedEvent.creator?.firstName} {mergedEvent.creator?.lastName}
                     </p>
                     <p className="text-xs text-muted-foreground">Quản lý sự kiện</p>
                   </div>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="font-bold text-lg mb-4">Tình nguyện viên gần đây</h3>
+                <div className="space-y-3">
+                  {recentVolunteers.map((volunteer: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={volunteer.avatar || "/placeholder.svg"} alt={volunteer.name} />
+                        <AvatarFallback>{volunteer.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{volunteer.name}</p>
+                        <p className="text-xs text-muted-foreground">Đã đăng ký</p>
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="link" className="w-full text-primary p-0 h-auto">
+                    Xem tất cả {volunteers} tình nguyện viên →
+                  </Button>
                 </div>
               </Card>
 

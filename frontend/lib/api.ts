@@ -52,6 +52,16 @@ export const eventApi = {
     return apiCall<Event[]>(`/events/manager/${managerId}/events`);
   },
 
+  // Admin fetch events with optional status (requires admin token)
+  getAdminEvents: async (token: string, status?: string): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    const endpoint = `/admin/events${params.toString() ? `?${params.toString()}` : ''}`;
+    return apiCall<any>(endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
   // Search events with filters
   searchEvents: async (params?: {
     search?: string;
@@ -72,6 +82,14 @@ export const eventApi = {
 
 
 export const registrationApi = {
+  getMyRegistrations: async (token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>('/registrations/me', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
   getEventRegistrations: async (
     eventId: string,
     options?: GetRegistrationsOptions
@@ -159,15 +177,80 @@ export const registrationApi = {
 
 };
 
+// Posts / Comments API functions
+export const postApi = {
+  getEventPosts: async (eventId: string, options?: { limit?: number; cursor?: string }): Promise<ApiResponse<any>> => {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', String(options.limit));
+    if (options?.cursor) params.append('cursor', options.cursor);
+    const qs = params.toString();
+    const endpoint = `/events/${eventId}/posts${qs ? `?${qs}` : ""}`;
+    return apiCall<any>(endpoint);
+  },
+
+  createPost: async (
+    eventId: string,
+    payload: { content?: string; file?: File | null },
+    token: string
+  ): Promise<ApiResponse<any>> => {
+    const form = new FormData();
+    if (payload.content) form.append("content", payload.content);
+    if (payload.file) form.append("image", payload.file);
+
+    return apiCall<any>(`/events/${eventId}/posts`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form as any,
+    });
+  },
+
+  addComment: async (postId: string, content: string, token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>(`/posts/${postId}/comments`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  toggleLike: async (postId: string, token: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>(`/posts/${postId}/like`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
 
 // User API functions
 export const userApi = {
   // Get current user's profile
   getProfile: async (token: string): Promise<ApiResponse<any>> => {
-    return apiCall<any>('/profile', {
+    return apiCall<any>('/users/me', {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+    });
+  },
+
+  // Update current user's profile
+  updateProfile: async (token: string, payload: any): Promise<ApiResponse<any>> => {
+    return apiCall<any>('/users/me', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Upload avatar using base64/dataUrl
+  uploadAvatar: async (token: string, payload: { dataUrl?: string; base64?: string; contentType?: string }) => {
+    return apiCall<any>('/users/me/avatar', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
     });
   },
 };
