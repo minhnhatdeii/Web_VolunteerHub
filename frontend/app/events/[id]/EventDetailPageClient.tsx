@@ -47,9 +47,9 @@ export default function EventDetailPageClient({ params }: { params: { id: string
       },
       tags: ["Environment", "Outdoor", "Community"],
       recentVolunteers: [
-        { name: "Trần Thị B", avatar: "/volunteer-1.jpg" },
-        { name: "Lê Văn C", avatar: "/volunteer-2.jpg" },
-        { name: "Phạm Thị D", avatar: "/volunteer-3.jpg" },
+        { name: "Trần Thị B", avatar: "/placeholder.svg" },
+        { name: "Lê Văn C", avatar: "/placeholder.svg" },
+        { name: "Phạm Thị D", avatar: "/placeholder.svg" },
       ],
     }),
     []
@@ -409,3 +409,4 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     </div>
   );
 }
+

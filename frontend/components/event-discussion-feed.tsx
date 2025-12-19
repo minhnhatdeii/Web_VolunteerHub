@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Heart, MessageCircle, Share2, Send, ImageIcon } from "lucide-react";
 import { postApi } from "@/lib/api";
+import { Toaster, toast } from "sonner";
 
 type Post = {
   id: string;
-  author: {
-    name: string;
-    avatar: string;
-    role?: string;
-  };
+  author: { name: string; avatar: string; role?: string };
   content: string;
   image?: string;
   timestamp: string;
@@ -25,26 +22,24 @@ type Post = {
 
 type Comment = {
   id: string;
-  author: {
-    name: string;
-    avatar: string;
-  };
+  author: { name: string; avatar: string };
   content: string;
   timestamp: string;
 };
 
-type Props = {
-  eventId: string;
-};
+type Props = { eventId: string };
 
 export default function EventDiscussionFeed({ eventId }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [activeComments, setActiveComments] = useState<{ [key: string]: string }>({});
   const [showComments, setShowComments] = useState<{ [key: string]: boolean }>({});
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>("Bạn");
+  const [userName, setUserName] = useState<string>("Ban");
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     try {
@@ -65,7 +60,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
     items.map((p) => ({
       id: p.id,
       author: {
-        name: [p.author?.firstName, p.author?.lastName].filter(Boolean).join(" ").trim() || p.author?.name || "Ẩn danh",
+        name: [p.author?.firstName, p.author?.lastName].filter(Boolean).join(" ").trim() || p.author?.name || "An danh",
         avatar: p.author?.avatarUrl || "/placeholder.svg",
         role: p.author?.role || "",
       },
@@ -77,7 +72,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
         (p.comments || []).map((c: any) => ({
           id: c.id,
           author: {
-            name: [c.author?.firstName, c.author?.lastName].filter(Boolean).join(" ").trim() || "Ẩn danh",
+            name: [c.author?.firstName, c.author?.lastName].filter(Boolean).join(" ").trim() || "An danh",
             avatar: c.author?.avatarUrl || "/placeholder.svg",
           },
           content: c.content || "",
@@ -105,7 +100,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
 
   const handleLike = async (postId: string) => {
     if (!accessToken) {
-      alert("Vui lòng đăng nhập để thích bài viết.");
+      toast.error("Vui long dang nhap de thich bai viet.");
       return;
     }
     setPosts((prev) =>
@@ -123,13 +118,13 @@ export default function EventDiscussionFeed({ eventId }: Props) {
   };
 
   const handleAddPost = async () => {
-    if (!newPost.trim()) return;
+    if (!newPost.trim() && !selectedFile) return;
     if (!accessToken) {
-      alert("Vui lòng đăng nhập để đăng bài.");
+      toast.error("Vui long dang nhap de dang bai.");
       return;
     }
     try {
-      const res = await postApi.createPost(eventId, { content: newPost }, accessToken);
+      const res = await postApi.createPost(eventId, { content: newPost, file: selectedFile }, accessToken);
       const p: any = res?.data || {};
       const mapped = mapPosts([p])[0] || {
         id: Date.now().toString(),
@@ -142,9 +137,12 @@ export default function EventDiscussionFeed({ eventId }: Props) {
       };
       setPosts((prev) => [mapped, ...prev]);
       setNewPost("");
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      toast.success("Dang bai thanh cong");
     } catch (err) {
       console.error("Failed to create post", err);
-      alert("Đăng bài thất bại, vui lòng thử lại.");
+      toast.error("Dang bai that bai, vui long thu lai.");
     }
   };
 
@@ -152,7 +150,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
     const commentContent = activeComments[postId];
     if (!commentContent?.trim()) return;
     if (!accessToken) {
-      alert("Vui lòng đăng nhập để bình luận.");
+      toast.error("Vui long dang nhap de binh luan.");
       return;
     }
     try {
@@ -184,9 +182,10 @@ export default function EventDiscussionFeed({ eventId }: Props) {
         }),
       );
       setActiveComments({ ...activeComments, [postId]: "" });
+      toast.success("Da gui binh luan");
     } catch (err) {
       console.error("Add comment failed", err);
-      alert("Bình luận thất bại, vui lòng thử lại.");
+      toast.error("Binh luan that bai, vui long thu lai.");
     }
   };
 
@@ -196,6 +195,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
 
   return (
     <div className="space-y-6">
+      <Toaster position="top-center" />
       <Card className="p-6">
         <div className="flex gap-4">
           <Avatar className="h-10 w-10">
@@ -204,40 +204,74 @@ export default function EventDiscussionFeed({ eventId }: Props) {
           </Avatar>
           <div className="flex-1 space-y-3">
             <Textarea
-              placeholder="Chia sẻ suy nghĩ của bạn về sự kiện này..."
+              placeholder="Chia se suy nghi cua ban ve su kien nay..."
               value={newPost}
               onChange={(e) => setNewPost(e.target.value)}
               className="min-h-[100px] resize-none"
             />
+            {previewUrl && (
+              <div className="rounded-lg overflow-hidden border">
+                <img src={previewUrl} alt="Anh dinh kem" className="w-full max-h-64 object-cover" />
+                <div className="flex justify-between items-center px-3 py-2 text-sm bg-muted">
+                  <span className="truncate">{selectedFile?.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    Xoa anh
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
-                <ImageIcon className="h-4 w-4 mr-2" />
-                Thêm ảnh (chưa hỗ trợ)
-              </Button>
-              <Button onClick={handleAddPost} disabled={!newPost.trim()}>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      setPreviewUrl(URL.createObjectURL(file));
+                    }
+                  }}
+                />
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => fileInputRef.current?.click()}>
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Them anh
+                </Button>
+              </div>
+              <Button onClick={handleAddPost} disabled={!newPost.trim() && !selectedFile}>
                 <Send className="h-4 w-4 mr-2" />
-                Đăng bài
+                Dang bai
               </Button>
             </div>
           </div>
         </div>
       </Card>
 
-      {loading && <p className="text-muted text-sm">Đang tải thảo luận...</p>}
+      {loading && <p className="text-muted text-sm">Dang tai thao luan...</p>}
 
       <div className="space-y-4">
         {posts.map((post) => (
           <Card key={post.id} className="p-6">
             <div className="flex items-start gap-4 mb-4">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={post.author.avatar || "/placeholder.svg"} alt={post.author.name} />
+                <AvatarImage src={post.author.avatar || undefined} alt={post.author.name} />
                 <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-semibold">{post.author.name}</p>
                   {post.author.role === "Organizer" && (
-                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">Tổ chức</span>
+                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">To chuc</span>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">{post.timestamp}</p>
@@ -247,11 +281,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
             <div className="mb-4">
               <p className="text-base leading-relaxed mb-3">{post.content}</p>
               {post.image && (
-                <img
-                  src={post.image || "/placeholder.svg"}
-                  alt="Post image"
-                  className="w-full rounded-lg object-cover max-h-96"
-                />
+                <img src={post.image || "/placeholder.svg"} alt="Post image" className="w-full rounded-lg object-cover max-h-96" />
               )}
             </div>
 
@@ -263,18 +293,18 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                 }`}
               >
                 <Heart className={`h-5 w-5 ${post.isLiked ? "fill-current" : ""}`} />
-                <span>{post.likes > 0 ? post.likes : "Thích"}</span>
+                <span>{post.likes > 0 ? post.likes : "Thich"}</span>
               </button>
               <button
                 onClick={() => toggleComments(post.id)}
                 className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <MessageCircle className="h-5 w-5" />
-                <span>{post.comments.length > 0 ? post.comments.length : "Bình luận"}</span>
+                <span>{post.comments.length > 0 ? post.comments.length : "Binh luan"}</span>
               </button>
               <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <Share2 className="h-5 w-5" />
-                <span>Chia sẻ</span>
+                <span>Chia se</span>
               </button>
             </div>
 
@@ -283,7 +313,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                 {post.comments.map((comment) => (
                   <div key={comment.id} className="flex gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={comment.author.avatar || "/placeholder.svg"} alt={comment.author.name} />
+                      <AvatarImage src={comment.author.avatar || undefined} alt={comment.author.name} />
                       <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -304,7 +334,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                   <div className="flex-1 flex gap-2">
                     <input
                       type="text"
-                      placeholder="Viết bình luận..."
+                      placeholder="Viet binh luan..."
                       value={activeComments[post.id] || ""}
                       onChange={(e) => setActiveComments({ ...activeComments, [post.id]: e.target.value })}
                       onKeyPress={(e) => e.key === "Enter" && handleAddComment(post.id)}

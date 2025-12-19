@@ -15,9 +15,11 @@ const apiCall = async <T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
   try {
+    const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+    const baseHeaders: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
-        'Content-Type': 'application/json',
+        ...baseHeaders,
         ...options.headers,
       },
       ...options,
@@ -207,7 +209,7 @@ export const postApi = {
   addComment: async (postId: string, content: string, token: string): Promise<ApiResponse<any>> => {
     return apiCall<any>(`/posts/${postId}/comments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
   },

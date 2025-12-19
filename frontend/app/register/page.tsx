@@ -7,6 +7,7 @@ import Link from "next/link"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import { AlertCircle } from "lucide-react"
+import { Toaster, toast } from "sonner"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -65,11 +66,15 @@ export default function RegisterPage() {
       })
 
       if (response.ok) {
-        // Registration successful
-        window.location.href = "/login"
+        toast.success("–ang k˝ th‡nh cÙng, vui lÚng dang nh?p")
+        setTimeout(() => {
+          window.location.href = "/login"
+        }, 500)
       } else {
         const data = await response.json()
-        setError(data.error || "ƒêƒÉng k√Ω th·∫•t b·∫°i. Vui l√≤ng th·ª≠ l·∫°i.")
+        const msg = data.error || "–ang k˝ th?t b?i. Vui lÚng th? l?i."
+        setError(msg)
+        toast.error(msg)
       }
     } catch (error) {
       setError("L·ªói k·∫øt n·ªëi. Vui l√≤ng th·ª≠ l·∫°i.")
@@ -80,6 +85,7 @@ export default function RegisterPage() {
 
   return (
     <>
+      <Toaster position="top-center" />
       <Navbar />
       <main className="min-h-screen bg-neutral-50 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md card-base p-8">
@@ -167,3 +173,4 @@ export default function RegisterPage() {
     </>
   )
 }
+

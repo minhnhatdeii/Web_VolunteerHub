@@ -140,7 +140,7 @@ export async function createComment(req, res) {
   try {
     const { postId } = req.params;
     const userId = req.user?.id;
-    const content = sanitizeContent(req.body.content || '');
+    const content = sanitizeContent((req.body && req.body.content) ? req.body.content : '');
 
     if (!userId) {
       return res.status(401).json({ success: false, data: null, message: 'Unauthorized' });

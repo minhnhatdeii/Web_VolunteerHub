@@ -7,6 +7,7 @@ import Link from "next/link"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import { AlertCircle } from "lucide-react"
+import { Toaster, toast } from "sonner"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -51,6 +52,7 @@ export default function LoginPage() {
 
   return (
     <>
+      <Toaster position="top-center" />
       <Navbar />
       <main className="min-h-screen bg-neutral-50 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md card-base p-8">
@@ -104,3 +106,4 @@ export default function LoginPage() {
     </>
   )
 }
+

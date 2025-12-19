@@ -7,6 +7,7 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { userApi } from "@/lib/api";
+import { Toaster, toast } from "sonner";
 
 interface Profile {
   id?: string;
@@ -136,14 +137,16 @@ export default function ProfilePage() {
           bio: updated.bio ?? prev.bio,
         }));
         setSuccess("Da luu thay doi ho so.");
+        toast.success("Đã lưu hồ sơ");
         try {
-            localStorage.setItem("user", JSON.stringify(updated));
+          localStorage.setItem("user", JSON.stringify(updated));
         } catch (_) {
           // ignore
         }
       }
     } catch (err) {
       setError("Cap nhat that bai. Vui long thu lai.");
+      toast.error("Cập nhật thất bại. Vui lòng thử lại.");
       console.error(err);
     } finally {
       setSaving(false);
@@ -167,6 +170,7 @@ export default function ProfilePage() {
 
   return (
     <>
+      <Toaster position="top-center" />
       <Navbar />
       <main className="min-h-screen bg-neutral-50 py-12">
         <div className="container-custom max-w-3xl">
