@@ -14,6 +14,19 @@ const postInclude = {
       avatarUrl: true,
     },
   },
+  comments: {
+    include: {
+      author: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  },
   _count: {
     select: {
       comments: true,
@@ -141,13 +154,14 @@ export async function createComment(req, res) {
     const { postId } = req.params;
     const userId = req.user?.id;
     const content = sanitizeContent((req.body && req.body.content) ? req.body.content : '');
+    const file = req.file;
 
     if (!userId) {
       return res.status(401).json({ success: false, data: null, message: 'Unauthorized' });
     }
 
-    if (!content) {
-      return res.status(400).json({ success: false, data: null, message: 'Content is required' });
+    if (!content && !file) {
+      return res.status(400).json({ success: false, data: null, message: 'Content or image is required' });
     }
 
     const post = await prisma.post.findUnique({
@@ -159,9 +173,30 @@ export async function createComment(req, res) {
       return res.status(404).json({ success: false, data: null, message: 'Post not found' });
     }
 
+    let imageUrl = null;
+    if (file) {
+      const fileName = `comments/${postId}/${Date.now()}-${file.originalname}`;
+      const uploadResult = await SupabaseStorageHelper.uploadCommentImage(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+      if (uploadResult.error) {
+        console.error('Supabase upload error:', uploadResult.error?.message);
+        return res.status(500).json({
+          success: false,
+          data: null,
+          message: 'Failed to upload image',
+        });
+      }
+
+      imageUrl = SupabaseStorageHelper.getFileUrl('image-comments', uploadResult.data.path);
+    }
+
     const comment = await prisma.comment.create({
       data: {
         content,
+        imageUrl,
         authorId: userId,
         postId,
       },

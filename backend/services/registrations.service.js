@@ -9,6 +9,7 @@ import { createNotification } from './notification.service.js';
  */
 export async function registerForEvent(userId, eventId) {
   // Check if event exists and is still open for registration
+  // Optimization: Fetch title and creatorId here to avoid extra query later
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     select: {
@@ -16,7 +17,9 @@ export async function registerForEvent(userId, eventId) {
       maxParticipants: true,
       currentParticipants: true,
       startDate: true,
-      status: true
+      status: true,
+      title: true,
+      creatorId: true
     }
   });
 
@@ -33,7 +36,7 @@ export async function registerForEvent(userId, eventId) {
     return { error: 'Event is at maximum capacity', statusCode: 400 };
   }
 
-  // Check if user is already registered
+  // Check if user has ANY registration for this event (Optimization: single query)
   const existingRegistration = await prisma.registration.findFirst({
     where: {
       userId: userId,
@@ -41,37 +44,53 @@ export async function registerForEvent(userId, eventId) {
     }
   });
 
-  if (existingRegistration) {
-    return { error: 'User is already registered for this event', statusCode: 400 };
-  }
-
-  // Create the registration with PENDING status
-  const registration = await prisma.registration.create({
-    data: {
-      userId: userId,
-      eventId: eventId,
-      status: 'PENDING'
+  let registration;
+  const includeData = {
+    user: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true
+      }
     },
-    include: {
-      user: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true
-        }
-      },
-      event: {
-        select: {
-          id: true,
-          title: true,
-          startDate: true,
-          endDate: true,
-          location: true
-        }
+    event: {
+      select: {
+        id: true,
+        title: true,
+        startDate: true,
+        endDate: true,
+        location: true
       }
     }
-  });
+  };
+
+  if (existingRegistration) {
+    // If active, return error
+    if (['PENDING', 'APPROVED', 'ATTENDED'].includes(existingRegistration.status)) {
+      return { error: 'User is already registered for this event', statusCode: 400 };
+    }
+
+    // Reactivate the previous registration (CANCELLED or REJECTED)
+    registration = await prisma.registration.update({
+      where: { id: existingRegistration.id },
+      data: {
+        status: 'PENDING',
+        appliedAt: new Date()
+      },
+      include: includeData
+    });
+  } else {
+    // Create new registration with PENDING status
+    registration = await prisma.registration.create({
+      data: {
+        userId: userId,
+        eventId: eventId,
+        status: 'PENDING'
+      },
+      include: includeData
+    });
+  }
 
   // Update the event's current participant count
   await prisma.event.update({
@@ -82,23 +101,17 @@ export async function registerForEvent(userId, eventId) {
   });
 
   // Notify the event manager about the new registration
-  const eventWithCreator = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: {
-      creatorId: true,
-      title: true
-    }
-  });
-
-  if (eventWithCreator) {
+  if (event.creatorId) {
+    // We don't need to await this if we want to return response faster, 
+    // but typically we await to ensure it's saved.
     await createNotification({
-      userId: eventWithCreator.creatorId,
+      userId: event.creatorId,
       title: 'Đăng ký mới',
-      message: `${registration.user.firstName} ${registration.user.lastName} đã đăng ký sự kiện "${eventWithCreator.title}"`,
+      message: `${registration.user.firstName} ${registration.user.lastName} đã đăng ký sự kiện "${event.title}"`,
       type: 'new_registration',
       data: {
         eventId: eventId,
-        eventTitle: eventWithCreator.title,
+        eventTitle: event.title,
         registrationId: registration.id
       }
     });

@@ -1,6 +1,4 @@
-import { PrismaClient } from '../generated/prisma/index.js';
-
-const prisma = new PrismaClient();
+import prisma from '../db.js';
 
 /**
  * Create a notification for a user
@@ -23,7 +21,7 @@ export const createNotification = async ({ userId, title, message, type, data = 
         data: data ? data : undefined, // Only include data if it's provided
       },
     });
-    
+
     return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -42,20 +40,20 @@ export const createNotification = async ({ userId, title, message, type, data = 
  */
 export const getUserNotifications = async (userId, options = {}) => {
   const { limit = 10, offset = 0, unreadOnly = false } = options;
-  
+
   try {
     const where = {
       userId,
       ...(unreadOnly && { isRead: false })
     };
-    
+
     const notifications = await prisma.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       skip: offset,
       take: limit,
     });
-    
+
     return notifications;
   } catch (error) {
     console.error('Error getting user notifications:', error);
@@ -80,7 +78,7 @@ export const markNotificationAsRead = async (notificationId, userId) => {
         isRead: true,
       },
     });
-    
+
     return notification;
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -104,7 +102,7 @@ export const markAllNotificationsAsRead = async (userId) => {
         isRead: true,
       },
     });
-    
+
     return result.count;
   } catch (error) {
     console.error('Error marking all notifications as read:', error);

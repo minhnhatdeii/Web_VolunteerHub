@@ -4,7 +4,7 @@ export async function getMe(req, res) {
   try {
     const result = await getMeService(req.user.id);
     if (result.error) return res.status(result.error).json({ error: result.message });
-    return res.json(result.user);
+    return res.json({ success: true, data: result.user });
   } catch (error) {
     console.error('Get user profile error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -13,9 +13,10 @@ export async function getMe(req, res) {
 
 export async function updateMe(req, res) {
   try {
+    console.log('updateMe controller received body:', JSON.stringify(req.body));
     const result = await updateMeService(req.user.id, req.body);
     if (result.error) return res.status(result.error).json({ error: result.message });
-    return res.json(result.user);
+    return res.json({ success: true, data: result.user });
   } catch (error) {
     console.error('Update user profile error:', error);
     return res.status(500).json({ error: 'Internal server error' });

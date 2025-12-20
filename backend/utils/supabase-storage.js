@@ -95,6 +95,36 @@ class SupabaseStorageHelper {
   }
 
   /**
+   * Upload a file to the comment images bucket
+   * @param {string} fileName - Name of the file to upload
+   * @param {File|Buffer} file - The file to upload
+   * @param {Object} options - Upload options
+   * @returns {Promise} The upload result
+   */
+  static async uploadCommentImage(fileName, file, options = {}) {
+    return await supabase
+      .storage
+      .from('image-comments')
+      .upload(fileName, file, {
+        contentType: options.contentType || 'image/jpeg',
+        upsert: options.upsert || true,
+        ...options
+      });
+  }
+
+  /**
+   * Download a file from the comment images bucket
+   * @param {string} fileName - Name of the file to download
+   * @returns {Promise} The download result
+   */
+  static async downloadCommentImage(fileName) {
+    return await supabase
+      .storage
+      .from('image-comments')
+      .download(fileName);
+  }
+
+  /**
    * Delete a file from any bucket
    * @param {string} bucketName - Name of the bucket
    * @param {string} fileName - Name of the file to delete

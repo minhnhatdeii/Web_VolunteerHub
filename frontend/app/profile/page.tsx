@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Camera } from "lucide-react";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,8 +33,10 @@ export default function ProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const fullName = useMemo(() => {
     const combined = [formData.firstName, formData.lastName].filter(Boolean).join(" ").trim();
@@ -111,6 +113,68 @@ export default function ProfilePage() {
     setError(null);
   };
 
+  const handleAvatarClick = () => {
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file ảnh");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Ảnh phải nhỏ hơn 5MB");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+
+      // Convert file to base64 dataUrl
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        try {
+          const res = await userApi.uploadAvatar(accessToken, { dataUrl });
+          // Backend returns { message, file, user } directly, not wrapped in data
+          const avatarUrl = res?.user?.avatarUrl || res?.data?.user?.avatarUrl;
+          if (avatarUrl) {
+            setFormData((prev) => ({ ...prev, avatarUrl }));
+            toast.success("Đã cập nhật avatar");
+            // Update localStorage
+            try {
+              const storedUser = localStorage.getItem("user");
+              if (storedUser) {
+                const parsed = JSON.parse(storedUser);
+                parsed.avatarUrl = avatarUrl;
+                localStorage.setItem("user", JSON.stringify(parsed));
+              }
+            } catch (_) { }
+          } else {
+            console.log('Upload response:', res);
+            toast.error("Không nhận được URL avatar");
+          }
+        } catch (err) {
+          console.error(err);
+          toast.error("Tải ảnh lên thất bại");
+        } finally {
+          setUploadingAvatar(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi xử lý ảnh");
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!accessToken) {
       setError("Ban can dang nhap de cap nhat ho so.");
@@ -184,13 +248,30 @@ export default function ProfilePage() {
 
           <div className="card-base p-8">
             <div className="flex items-start gap-4 mb-8">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={formData.avatarUrl || "/placeholder.svg"} alt={fullName} />
-                <AvatarFallback>{fullName.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={formData.avatarUrl || "/placeholder.svg"} alt={fullName} />
+                  <AvatarFallback>{fullName.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {uploadingAvatar ? (
+                    <span className="text-white text-xs">...</span>
+                  ) : (
+                    <Camera className="h-5 w-5 text-white" />
+                  )}
+                </div>
+                <input
+                  type="file"
+                  ref={avatarInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
               <div>
                 <h1 className="text-3xl font-bold">{fullName}</h1>
                 <p className="text-muted">{formData.email || "Chua co email"}</p>
+                <p className="text-xs text-muted-foreground mt-1">Click vào ảnh để thay đổi avatar</p>
               </div>
             </div>
 

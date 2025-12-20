@@ -1,7 +1,8 @@
 import { Event } from '@/types/event';
 import { GetRegistrationsOptions, Registration } from '@/types/registration';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
+console.log('API_BASE_URL:', API_BASE_URL);
 
 interface ApiResponse<T> {
   success: boolean;
@@ -17,12 +18,15 @@ const apiCall = async <T>(
   try {
     const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
     const baseHeaders: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const fullUrl = `${API_BASE_URL}${endpoint}`;
+    console.log('Making API call to:', fullUrl);
+    const { headers, ...restOptions } = options;
+    const response = await fetch(fullUrl, {
+      ...restOptions,
       headers: {
         ...baseHeaders,
-        ...options.headers,
+        ...(headers as any),
       },
-      ...options,
     });
 
     if (!response.ok) {
@@ -61,6 +65,24 @@ export const eventApi = {
     const endpoint = `/admin/events${params.toString() ? `?${params.toString()}` : ''}`;
     return apiCall<any>(endpoint, {
       headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // Approve event (Admin)
+  approveEvent: async (id: string, token: string, reason?: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>(`/admin/events/${id}/approve`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  // Reject event (Admin)
+  rejectEvent: async (id: string, token: string, reason: string): Promise<ApiResponse<any>> => {
+    return apiCall<any>(`/admin/events/${id}/reject`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason }),
     });
   },
 
@@ -206,11 +228,19 @@ export const postApi = {
     });
   },
 
-  addComment: async (postId: string, content: string, token: string): Promise<ApiResponse<any>> => {
+  addComment: async (
+    postId: string,
+    payload: { content: string; file?: File | null },
+    token: string
+  ): Promise<ApiResponse<any>> => {
+    const form = new FormData();
+    if (payload.content) form.append("content", payload.content);
+    if (payload.file) form.append("image", payload.file);
+
     return apiCall<any>(`/posts/${postId}/comments`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      headers: { Authorization: `Bearer ${token}` },
+      body: form as any,
     });
   },
 
@@ -250,6 +280,7 @@ export const userApi = {
     return apiCall<any>('/users/me/avatar', {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(payload),

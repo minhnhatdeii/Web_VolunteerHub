@@ -16,7 +16,7 @@ import { useEventRealtime } from "@/hooks/use-realtime";
 export default function EventDetailPageClient({ params }: { params: { id: string } }) {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [registrationStatus, setRegistrationStatus] = useState<string | null>(null);
   const [volunteers, setVolunteers] = useState(0);
 
   const defaults = useMemo(
@@ -89,6 +89,29 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     fetchEvent();
   }, [fetchEvent]);
 
+  // Fetch user's registration status on load
+  useEffect(() => {
+    const checkRegistration = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token || !event?.id) return;
+
+      try {
+        const res = await registrationApi.getMyRegistrations(token);
+        // Handle both response formats: direct array or {success, data} wrapper
+        const registrations = Array.isArray(res) ? res : (res.success && Array.isArray(res.data) ? res.data : []);
+
+        // Find registration matching this event - check both eventId and event.id
+        const reg = registrations.find((r: any) =>
+          r.eventId === event.id || r.event?.id === event.id
+        );
+        setRegistrationStatus(reg?.status || null);
+      } catch (err) {
+        console.error("Failed to check registration status:", err);
+      }
+    };
+    checkRegistration();
+  }, [event?.id]);
+
   const mergedEvent = useMemo(() => {
     return {
       ...defaults,
@@ -128,7 +151,7 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     try {
       const res = await registrationApi.registerForEvent(event.id, token);
       if (res.success) {
-        setIsRegistered(true);
+        setRegistrationStatus("PENDING");
         setVolunteers((v) => v + 1);
       } else {
         alert(res.message || "Đăng ký thất bại");
@@ -149,7 +172,7 @@ export default function EventDetailPageClient({ params }: { params: { id: string
     try {
       const res = await registrationApi.cancelRegistration(event.id, token);
       if (res.success) {
-        setIsRegistered(false);
+        setRegistrationStatus(null);
         setVolunteers((v) => Math.max(0, v - 1));
       } else {
         alert(res.message || "Hủy đăng ký thất bại");
@@ -296,7 +319,7 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                       {mergedEvent.creator?.firstName} {mergedEvent.creator?.lastName}
                     </p>
                     <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                      Liên hệ qua email: {mergedEvent.creator?.id || "Đang cập nhật"}
+                      Liên hệ qua email: {(mergedEvent.creator as any)?.email || "Đang cập nhật"}
                     </p>
                     <Button variant="outline" className="mt-4 bg-transparent">
                       Theo dõi
@@ -307,34 +330,86 @@ export default function EventDetailPageClient({ params }: { params: { id: string
             </div>
 
             <div className="space-y-6">
-              <Card className="p-6 sticky top-20">
+              <Card className="p-6 sticky top-20 z-10">
                 <div className="space-y-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">Trạng thái đăng ký</p>
-                    <p className="text-lg font-bold">{isRegistered ? "Đã đăng ký" : "Chưa đăng ký"}</p>
+                    <p className={`text-lg font-bold ${registrationStatus === "APPROVED" ? "text-green-600" :
+                      registrationStatus === "PENDING" ? "text-yellow-600" :
+                        registrationStatus === "REJECTED" ? "text-red-600" :
+                          "text-muted-foreground"
+                      }`}>
+                      {registrationStatus === "APPROVED" ? "✓ Đã được duyệt" :
+                        registrationStatus === "PENDING" ? "⏳ Đang chờ duyệt" :
+                          registrationStatus === "REJECTED" ? "✗ Đã bị từ chối" :
+                            "Chưa đăng ký"}
+                    </p>
                   </div>
 
-                  <Button
-                    onClick={handleRegister}
-                    className={`w-full ${
-                      isRegistered ? "bg-secondary hover:bg-secondary/90" : "bg-primary hover:bg-primary/90"
-                    }`}
-                    disabled={isRegistered}
-                  >
-                    {isRegistered ? "Đã đăng ký sự kiện" : "Đăng ký sự kiện"}
-                  </Button>
-
-                  {isRegistered && (
-                    <div className="pt-4 border-t border-border space-y-2">
-                      <p className="text-sm text-muted-foreground mb-1">Các tùy chọn khác</p>
-                      <Button variant="outline" className="w-full bg-transparent" onClick={handleCancel}>
-                        Huỷ đăng ký
-                      </Button>
-                      <Button variant="outline" className="w-full bg-transparent">
-                        Chia sẻ sự kiện
-                      </Button>
+                  {/* Button logic based on registration status */}
+                  {/* Button logic based on registration status */}
+                  {!registrationStatus && mergedEvent.status === "APPROVED" && (
+                    <Button
+                      onClick={handleRegister}
+                      className="w-full bg-primary hover:bg-primary/90"
+                    >
+                      Đăng ký sự kiện
+                    </Button>
+                  )}
+                  {!registrationStatus && mergedEvent.status !== "APPROVED" && (
+                    <div className="p-3 bg-yellow-50 text-yellow-800 rounded-md text-sm text-center">
+                      Sự kiện này chưa được duyệt để đăng ký.
                     </div>
                   )}
+
+                  {registrationStatus === "PENDING" && (
+                    <>
+                      <Button
+                        disabled
+                        className="w-full bg-yellow-500 hover:bg-yellow-500 cursor-not-allowed"
+                      >
+                        ⏳ Đang chờ Manager duyệt
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full bg-transparent text-red-600 border-red-600 hover:bg-red-50"
+                        onClick={handleCancel}
+                      >
+                        Hủy đăng ký
+                      </Button>
+                    </>
+                  )}
+
+                  {registrationStatus === "APPROVED" && (
+                    <Button
+                      disabled
+                      className="w-full bg-green-600 hover:bg-green-600 cursor-not-allowed"
+                    >
+                      ✓ Bạn đã được duyệt tham gia
+                    </Button>
+                  )}
+
+                  {registrationStatus === "REJECTED" && (
+                    <>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <p className="text-sm text-red-600">Đăng ký của bạn đã bị từ chối</p>
+                      </div>
+                      <Button
+                        onClick={handleRegister}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Đăng ký lại
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Share button always visible */}
+                  <div className="pt-4 border-t border-border">
+                    <Button variant="outline" className="w-full bg-transparent">
+                      Chia sẻ sự kiện
+                    </Button>
+                  </div>
 
                   <div className="pt-4 border-t border-border">
                     <p className="text-xs text-muted-foreground leading-relaxed">
@@ -359,27 +434,6 @@ export default function EventDetailPageClient({ params }: { params: { id: string
                     </p>
                     <p className="text-xs text-muted-foreground">Quản lý sự kiện</p>
                   </div>
-                </div>
-              </Card>
-
-              <Card className="p-6">
-                <h3 className="font-bold text-lg mb-4">Tình nguyện viên gần đây</h3>
-                <div className="space-y-3">
-                  {recentVolunteers.map((volunteer: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={volunteer.avatar || "/placeholder.svg"} alt={volunteer.name} />
-                        <AvatarFallback>{volunteer.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{volunteer.name}</p>
-                        <p className="text-xs text-muted-foreground">Đã đăng ký</p>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="link" className="w-full text-primary p-0 h-auto">
-                    Xem tất cả {volunteers} tình nguyện viên →
-                  </Button>
                 </div>
               </Card>
 

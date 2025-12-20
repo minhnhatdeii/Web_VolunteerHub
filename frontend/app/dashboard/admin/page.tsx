@@ -163,6 +163,9 @@ export default function AdminDashboard() {
               <Link href="/admin/reports" className="btn-primary">
                 Xem báo cáo
               </Link>
+              <Link href="/dashboard/admin/events" className="btn-secondary">
+                Quản lý sự kiện
+              </Link>
               <Link href="/settings" className="p-2 hover:bg-white rounded-lg transition-colors">
                 <Settings size={24} />
               </Link>

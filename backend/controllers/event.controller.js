@@ -127,7 +127,7 @@ export const getEventById = async (req, res) => {
     const event = await prisma.event.findUnique({
       where: { id: req.params.id },
       include: {
-        creator: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+        creator: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } },
         registrations: true,
       },
     });

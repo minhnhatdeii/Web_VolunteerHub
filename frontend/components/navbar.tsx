@@ -130,8 +130,8 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden md:flex gap-8">
-            <Link href="/" className="text-foreground hover:text-primary transition">
-              Trang chủ
+            <Link href={isAuthenticated ? dashboardHref : "/"} className="text-foreground hover:text-primary transition">
+              {isAuthenticated ? "Dashboard" : "Trang chủ"}
             </Link>
             <Link href="/events" className="text-foreground hover:text-primary transition">
               Sự kiện
@@ -148,8 +148,8 @@ export default function Navbar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 hover:opacity-80 transition">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={displayName} />
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={displayName} />
                         <AvatarFallback>{initial}</AvatarFallback>
                       </Avatar>
                     </button>
@@ -195,8 +195,8 @@ export default function Navbar() {
 
         {isOpen && (
           <div className="md:hidden pb-4 space-y-3">
-            <Link href="/" className="block text-foreground hover:text-primary">
-              Trang chủ
+            <Link href={isAuthenticated ? dashboardHref : "/"} className="block text-foreground hover:text-primary">
+              {isAuthenticated ? "Dashboard" : "Trang chủ"}
             </Link>
             <Link href="/events" className="block text-foreground hover:text-primary">
               Sự kiện
@@ -210,8 +210,8 @@ export default function Navbar() {
                   <div className="pt-3 border-t border-border">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={displayName} />
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={displayName} />
                           <AvatarFallback>{initial}</AvatarFallback>
                         </Avatar>
                         <div>

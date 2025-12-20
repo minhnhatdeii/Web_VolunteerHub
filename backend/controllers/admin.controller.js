@@ -1,5 +1,7 @@
 import { PrismaClient } from '../generated/prisma/index.js';
 import { createNotification } from '../services/notification.service.js'; // Import notification service
+import * as reportsService from '../services/reports.service.js';
+import * as exportService from '../services/export.service.js';
 import { emitEventUpdate } from '../realtime/index.js';
 
 const prisma = new PrismaClient();
@@ -206,8 +208,82 @@ export const adminRejectEvent = async (req, res) => {
   }
 };
 
+/* -----------------------------------------------------------
+     GET /api/admin/reports/events-by-month — get events aggregated by month
+     Admin only - returns monthly event counts for charts
+  ------------------------------------------------------------*/
+export const getEventsByMonth = async (req, res) => {
+  try {
+    const { year } = req.query;
+    const yearNum = year ? parseInt(year) : undefined;
+
+    const result = await reportsService.getEventsByMonth(yearNum);
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching events by month:', err);
+    res.status(500).json({ error: 'Failed to fetch events by month' });
+  }
+};
+
+/* -----------------------------------------------------------
+   GET /api/admin/reports/dashboard-stats — get dashboard statistics
+   Admin only - returns counts for dashboard
+------------------------------------------------------------*/
+export const getDashboardStats = async (req, res) => {
+  try {
+    const stats = await reportsService.getDashboardStats();
+    res.json(stats);
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+  }
+};
+
+/* -----------------------------------------------------------
+   GET /api/admin/export/events.csv — export events as CSV
+   Admin only - downloads events data as CSV file
+------------------------------------------------------------*/
+export const exportEvents = async (req, res) => {
+  try {
+    const events = await reportsService.getEventReport();
+    const csv = exportService.generateEventsCSV(events);
+
+    // Set headers for CSV download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=events.csv');
+    res.send(csv);
+  } catch (err) {
+    console.error('Error exporting events:', err);
+    res.status(500).json({ error: 'Failed to export events' });
+  }
+};
+
+/* -----------------------------------------------------------
+   GET /api/admin/export/registrations.csv — export registrations as CSV
+   Admin only - downloads registrations data as CSV file
+------------------------------------------------------------*/
+export const exportRegistrations = async (req, res) => {
+  try {
+    const registrations = await reportsService.getRegistrationReport();
+    const csv = exportService.generateRegistrationsCSV(registrations);
+
+    // Set headers for CSV download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=registrations.csv');
+    res.send(csv);
+  } catch (err) {
+    console.error('Error exporting registrations:', err);
+    res.status(500).json({ error: 'Failed to export registrations' });
+  }
+};
+
 export default {
   getPendingEvents,
   adminApproveEvent,
   adminRejectEvent,
+  getEventsByMonth,
+  getDashboardStats,
+  exportEvents,
+  exportRegistrations,
 };
+

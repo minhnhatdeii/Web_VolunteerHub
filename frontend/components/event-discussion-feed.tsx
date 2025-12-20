@@ -24,6 +24,7 @@ type Comment = {
   id: string;
   author: { name: string; avatar: string };
   content: string;
+  image?: string;
   timestamp: string;
 };
 
@@ -35,11 +36,15 @@ export default function EventDiscussionFeed({ eventId }: Props) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [activeComments, setActiveComments] = useState<{ [key: string]: string }>({});
+  const [activeCommentFiles, setActiveCommentFiles] = useState<{ [key: string]: File | null }>({});
+  const [activeCommentPreviews, setActiveCommentPreviews] = useState<{ [key: string]: string | null }>({});
   const [showComments, setShowComments] = useState<{ [key: string]: boolean }>({});
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string>("");
   const [userName, setUserName] = useState<string>("Ban");
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const commentFileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   useEffect(() => {
     try {
@@ -50,6 +55,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
         const parsed = JSON.parse(storedUser);
         const full = [parsed.firstName, parsed.lastName].filter(Boolean).join(" ").trim() || parsed.name || parsed.email;
         if (full) setUserName(full);
+        if (parsed.avatarUrl) setUserAvatar(parsed.avatarUrl);
       }
     } catch (_) {
       // ignore
@@ -76,6 +82,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
             avatar: c.author?.avatarUrl || "/placeholder.svg",
           },
           content: c.content || "",
+          image: c.imageUrl || undefined,
           timestamp: new Date(c.createdAt || Date.now()).toLocaleString("vi-VN"),
         })) || [],
       isLiked: false,
@@ -128,7 +135,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
       const p: any = res?.data || {};
       const mapped = mapPosts([p])[0] || {
         id: Date.now().toString(),
-        author: { name: userName, avatar: "/placeholder.svg" },
+        author: { name: userName, avatar: userAvatar || "/placeholder.svg" },
         content: newPost,
         timestamp: new Date().toLocaleString("vi-VN"),
         likes: 0,
@@ -154,7 +161,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
       return;
     }
     try {
-      const res = await postApi.addComment(postId, commentContent, accessToken);
+      const res = await postApi.addComment(postId, { content: commentContent, file: activeCommentFiles[postId] }, accessToken);
       const c: any = res?.data || {};
       setPosts((prev) =>
         prev.map((post) => {
@@ -173,6 +180,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                     avatar: c.author?.avatarUrl || "/placeholder.svg",
                   },
                   content: c.content || commentContent,
+                  image: c.imageUrl || undefined,
                   timestamp: new Date(c.createdAt || Date.now()).toLocaleString("vi-VN"),
                 },
               ],
@@ -182,6 +190,8 @@ export default function EventDiscussionFeed({ eventId }: Props) {
         }),
       );
       setActiveComments({ ...activeComments, [postId]: "" });
+      setActiveCommentFiles({ ...activeCommentFiles, [postId]: null });
+      setActiveCommentPreviews({ ...activeCommentPreviews, [postId]: null });
       toast.success("Da gui binh luan");
     } catch (err) {
       console.error("Add comment failed", err);
@@ -199,7 +209,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
       <Card className="p-6">
         <div className="flex gap-4">
           <Avatar className="h-10 w-10">
-            <AvatarImage src="/placeholder.svg" alt="Your avatar" />
+            <AvatarImage src={userAvatar || "/placeholder.svg"} alt="Your avatar" />
             <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 space-y-3">
@@ -288,9 +298,8 @@ export default function EventDiscussionFeed({ eventId }: Props) {
             <div className="flex items-center gap-6 pt-4 border-t">
               <button
                 onClick={() => handleLike(post.id)}
-                className={`flex items-center gap-2 text-sm transition-colors ${
-                  post.isLiked ? "text-red-500 font-medium" : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`flex items-center gap-2 text-sm transition-colors ${post.isLiked ? "text-red-500 font-medium" : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 <Heart className={`h-5 w-5 ${post.isLiked ? "fill-current" : ""}`} />
                 <span>{post.likes > 0 ? post.likes : "Thich"}</span>
@@ -319,7 +328,10 @@ export default function EventDiscussionFeed({ eventId }: Props) {
                     <div className="flex-1">
                       <div className="bg-muted rounded-lg p-3">
                         <p className="font-semibold text-sm">{comment.author.name}</p>
-                        <p className="text-sm leading-relaxed">{comment.content}</p>
+                        {comment.content && <p className="text-sm leading-relaxed">{comment.content}</p>}
+                        {comment.image && (
+                          <img src={comment.image} alt="Comment image" className="mt-2 rounded-lg max-h-48 object-cover" />
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 ml-3">{comment.timestamp}</p>
                     </div>
@@ -328,26 +340,64 @@ export default function EventDiscussionFeed({ eventId }: Props) {
 
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Your avatar" />
+                    <AvatarImage src={userAvatar || "/placeholder.svg"} alt="Your avatar" />
                     <AvatarFallback>{userName.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Viet binh luan..."
-                      value={activeComments[post.id] || ""}
-                      onChange={(e) => setActiveComments({ ...activeComments, [post.id]: e.target.value })}
-                      onKeyPress={(e) => e.key === "Enter" && handleAddComment(post.id)}
-                      className="flex-1 px-4 py-2 text-sm bg-muted rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => handleAddComment(post.id)}
-                      disabled={!activeComments[post.id]?.trim()}
-                      className="rounded-full"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                  <div className="flex-1 space-y-2">
+                    {activeCommentPreviews[post.id] && (
+                      <div className="relative inline-block">
+                        <img src={activeCommentPreviews[post.id]!} alt="Preview" className="rounded-lg max-h-32 object-cover" />
+                        <button
+                          onClick={() => {
+                            setActiveCommentFiles({ ...activeCommentFiles, [post.id]: null });
+                            setActiveCommentPreviews({ ...activeCommentPreviews, [post.id]: null });
+                            if (commentFileInputRefs.current[post.id]) commentFileInputRefs.current[post.id]!.value = "";
+                          }}
+                          className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 text-xs hover:bg-black/70"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={(el) => { commentFileInputRefs.current[post.id] = el; }}
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setActiveCommentFiles({ ...activeCommentFiles, [post.id]: file });
+                            setActiveCommentPreviews({ ...activeCommentPreviews, [post.id]: URL.createObjectURL(file) });
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => commentFileInputRefs.current[post.id]?.click()}
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </Button>
+                      <input
+                        type="text"
+                        placeholder="Viet binh luan..."
+                        value={activeComments[post.id] || ""}
+                        onChange={(e) => setActiveComments({ ...activeComments, [post.id]: e.target.value })}
+                        onKeyPress={(e) => e.key === "Enter" && handleAddComment(post.id)}
+                        className="flex-1 px-4 py-2 text-sm bg-muted rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handleAddComment(post.id)}
+                        disabled={!activeComments[post.id]?.trim() && !activeCommentFiles[post.id]}
+                        className="rounded-full"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -121,9 +121,9 @@ export default function VolunteerDashboard() {
       try {
         setLoading(true);
         const res = await registrationApi.getMyRegistrations(accessToken);
-        if (res?.data) {
-          setRegistrations(res.data as RegistrationWithEvent[]);
-        }
+        // Handle both response formats: direct array or wrapped in {data}
+        const registrations = Array.isArray(res) ? res : (res?.data || []);
+        setRegistrations(registrations as RegistrationWithEvent[]);
       } catch (err) {
         console.error("Failed to load registrations:", err);
       } finally {
@@ -143,9 +143,9 @@ export default function VolunteerDashboard() {
     { label: "Sự kiện yêu thích", value: favoriteEvents, icon: Heart },
   ];
 
-  const upcomingEvents = useMemo(() => {
+  const displayedEvents = useMemo(() => {
     return registrations
-      .filter((r) => r.event?.startDate && new Date(r.event.startDate) > new Date())
+      .sort((a, b) => new Date(b.event.startDate).getTime() - new Date(a.event.startDate).getTime())
       .map((r) => ({
         id: r.event.id,
         title: r.event.title,
@@ -203,13 +203,13 @@ export default function VolunteerDashboard() {
             {/* Main Content */}
             <div className="lg:col-span-2">
               <div className="card-base p-8 mb-8">
-                <h2 className="text-2xl font-bold mb-6">Sự kiện sắp diễn ra</h2>
+                <h2 className="text-2xl font-bold mb-6">Sự kiện đã đăng ký</h2>
                 <div className="space-y-4">
                   {loading && <p className="text-muted">Đang tải...</p>}
-                  {!loading && upcomingEvents.length === 0 && (
-                    <p className="text-muted">Bạn chưa có sự kiện sắp diễn ra.</p>
+                  {!loading && displayedEvents.length === 0 && (
+                    <p className="text-muted">Bạn chưa đăng ký sự kiện nào.</p>
                   )}
-                  {upcomingEvents.map((event) => (
+                  {displayedEvents.map((event) => (
                     <div
                       key={event.id}
                       className="flex gap-4 p-4 border border-border rounded-lg hover:bg-neutral-50 transition-colors"
@@ -223,9 +223,8 @@ export default function VolunteerDashboard() {
                         <h3 className="font-semibold mb-2">{event.title}</h3>
                         <p className="text-sm text-muted mb-2">{event.date}</p>
                         <span
-                          className={`text-xs px-3 py-1 rounded-full ${
-                            event.status === "approved" ? "bg-green-100 text-success" : "bg-yellow-100 text-warning"
-                          }`}
+                          className={`text-xs px-3 py-1 rounded-full ${event.status === "approved" ? "bg-green-100 text-success" : "bg-yellow-100 text-warning"
+                            }`}
                         >
                           {event.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
                         </span>
@@ -238,23 +237,7 @@ export default function VolunteerDashboard() {
                 </div>
               </div>
 
-              <div className="card-base p-8">
-                <h2 className="text-2xl font-bold mb-6">Thông báo</h2>
-                <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="font-semibold text-blue-900">Đăng ký được duyệt</p>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Đăng ký của bạn cho các sự kiện sẽ hiển thị tại đây khi có trạng thái mới.
-                    </p>
-                  </div>
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="font-semibold text-green-900">Sự kiện mới</p>
-                    <p className="text-sm text-green-700 mt-1">
-                      Các sự kiện mới phù hợp sẽ được cập nhật khi có dữ liệu.
-                    </p>
-                  </div>
-                </div>
-              </div>
+
             </div>
 
             {/* Sidebar */}
