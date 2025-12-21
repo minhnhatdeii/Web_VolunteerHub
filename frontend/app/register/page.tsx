@@ -66,13 +66,13 @@ export default function RegisterPage() {
       })
 
       if (response.ok) {
-        toast.success("�ang k� th�nh c�ng, vui l�ng dang nh?p")
+        toast.success("Đăng ký thành công! Chuyển hướng đến trang đăng nhập...")
         setTimeout(() => {
           window.location.href = "/login"
         }, 500)
       } else {
         const data = await response.json()
-        const msg = data.error || "�ang k� th?t b?i. Vui l�ng th? l?i."
+        const msg = data.error || "Đăng ký thất bại. Vui lòng thử lại."
         setError(msg)
         toast.error(msg)
       }

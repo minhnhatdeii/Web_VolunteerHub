@@ -329,7 +329,7 @@ export default function EventDetailPageClient({ params }: { params: { id: string
               </Card>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 self-start">
               <Card className="p-6 sticky top-20 z-10">
                 <div className="space-y-6">
                   <div>

@@ -20,9 +20,9 @@ export default function ManagerDashboard() {
 
   const stats = useMemo(
     () => [
-      { label: "Su kien da tao", value: 0, icon: Calendar },
-      { label: "Tinh nguyen vien dang ky", value: 0, icon: Users },
-      { label: "Su kien da duyet", value: 0, icon: CheckCircle },
+      { label: "Sự kiện đã tạo", value: 0, icon: Calendar },
+      { label: "ình nguyện viên đăng ký", value: 0, icon: Users },
+      { label: "Sự kiện đã duyệt", value: 0, icon: CheckCircle },
     ],
     []
   );
@@ -137,12 +137,12 @@ export default function ManagerDashboard() {
         <div className="container-custom">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="text-4xl font-bold">Dashboard Nguoi to chuc</h1>
-              <p className="text-muted mt-2">Chao mung, {user.name || user.email || "ban"}!</p>
+              <h1 className="text-4xl font-bold">Dashboard Người tổ chức</h1>
+              <p className="text-muted mt-2">Chào mừng, {user.name || user.email || "bạn"}!</p>
             </div>
             <div className="flex gap-4">
               <Link href="/events/create" className="btn-primary flex items-center gap-2">
-                <Plus size={20} /> Tao su kien
+                <Plus size={20} /> Tạo sự kiện
               </Link>
               <Link href="/settings" className="p-2 hover:bg-white rounded-lg transition-colors">
                 <Settings size={24} />
@@ -176,9 +176,9 @@ export default function ManagerDashboard() {
                 <h2 className="text-2xl font-bold mb-6">Su kien cua toi</h2>
 
                 {loading ? (
-                  <p className="text-muted">Dang tai du lieu...</p>
+                  <p className="text-muted">Đang tải dữ liệu...</p>
                 ) : events.length === 0 ? (
-                  <p className="text-muted">Chua co su kien nao.</p>
+                  <p className="text-muted">Chưa có sự kiện nào.</p>
                 ) : (
                   <div className="space-y-4">
                     {events.map((ev) => (
@@ -201,7 +201,7 @@ export default function ManagerDashboard() {
                               ev.status === "APPROVED" ? "bg-green-100 text-success" : "bg-yellow-100 text-warning"
                             }`}
                           >
-                            {ev.status === "APPROVED" ? "Da duyet" : "Cho duyet"}
+                            {ev.status === "APPROVED" ? "Đã duyệt" : "Chờ duyệt"}
                           </span>
                         </div>
 
@@ -222,20 +222,20 @@ export default function ManagerDashboard() {
                 <h3 className="text-xl font-bold mb-4">Thong tin ca nhan</h3>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-muted">Ten</p>
-                    <p className="font-semibold">{user.name || "Dang cap nhat"}</p>
+                    <p className="text-sm text-muted">Tên</p>
+                    <p className="font-semibold">{user.name || "Đang cập nhật"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted">Email</p>
-                    <p className="font-semibold">{user.email || "Dang cap nhat"}</p>
+                    <p className="font-semibold">{user.email || "Đang cập nhật"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted">Vai tro</p>
-                    <p className="font-semibold">Nguoi to chuc su kien</p>
+                    <p className="text-sm text-muted">Vai trò</p>
+                    <p className="font-semibold">Người tổ chức sự kiện</p>
                   </div>
                 </div>
                 <Link href="/profile" className="block w-full btn-primary mt-6 text-center">
-                  Chinh sua ho so
+                  Chỉnh sửa hồ sơ
                 </Link>
               </div>
             </div>

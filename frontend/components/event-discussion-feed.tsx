@@ -9,6 +9,8 @@ import { Heart, MessageCircle, Share2, Send, ImageIcon } from "lucide-react";
 import { postApi } from "@/lib/api";
 import { Toaster, toast } from "sonner";
 
+const ALLOWED_TYPES = ["image/jpeg", "image/png"];
+
 type Post = {
   id: string;
   author: { name: string; avatar: string; role?: string };
@@ -107,7 +109,7 @@ export default function EventDiscussionFeed({ eventId }: Props) {
 
   const handleLike = async (postId: string) => {
     if (!accessToken) {
-      toast.error("Vui long dang nhap de thich bai viet.");
+      toast.error("Vui lòng đăng nhập để thích bài viết.");
       return;
     }
     setPosts((prev) =>
@@ -146,18 +148,31 @@ export default function EventDiscussionFeed({ eventId }: Props) {
       setNewPost("");
       setSelectedFile(null);
       setPreviewUrl(null);
-      toast.success("Dang bai thanh cong");
+      toast.success("Đăng bài thành công!");
     } catch (err) {
       console.error("Failed to create post", err);
-      toast.error("Dang bai that bai, vui long thu lai.");
+      toast.error("Đăng bài thất bại, vui lòng thử lại.");
     }
+  };
+
+  const handleSelectFile = (file?: File | null) => {
+    if (!file) return;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh JPG hoặc PNG.");
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleAddComment = async (postId: string) => {
     const commentContent = activeComments[postId];
     if (!commentContent?.trim()) return;
     if (!accessToken) {
-      toast.error("Vui long dang nhap de binh luan.");
+      toast.error("Vui lòng đăng nhập để bình luận.");
       return;
     }
     try {
@@ -192,10 +207,10 @@ export default function EventDiscussionFeed({ eventId }: Props) {
       setActiveComments({ ...activeComments, [postId]: "" });
       setActiveCommentFiles({ ...activeCommentFiles, [postId]: null });
       setActiveCommentPreviews({ ...activeCommentPreviews, [postId]: null });
-      toast.success("Da gui binh luan");
+      toast.success("Đã gửi bình luận");
     } catch (err) {
       console.error("Add comment failed", err);
-      toast.error("Binh luan that bai, vui long thu lai.");
+      toast.error("Bình luận thất bại, vui lòng thử lại.");
     }
   };
 
@@ -214,14 +229,14 @@ export default function EventDiscussionFeed({ eventId }: Props) {
           </Avatar>
           <div className="flex-1 space-y-3">
             <Textarea
-              placeholder="Chia se suy nghi cua ban ve su kien nay..."
+              placeholder="Chia sẻ suy nghĩ của bạn về sự kiện này..."
               value={newPost}
               onChange={(e) => setNewPost(e.target.value)}
               className="min-h-[100px] resize-none"
             />
             {previewUrl && (
               <div className="rounded-lg overflow-hidden border">
-                <img src={previewUrl} alt="Anh dinh kem" className="w-full max-h-64 object-cover" />
+                <img src={previewUrl} alt="Ảnh đính kèm" className="w-full max-h-64 object-cover" />
                 <div className="flex justify-between items-center px-3 py-2 text-sm bg-muted">
                   <span className="truncate">{selectedFile?.name}</span>
                   <Button
@@ -242,25 +257,19 @@ export default function EventDiscussionFeed({ eventId }: Props) {
               <div className="flex items-center gap-2">
                 <input
                   type="file"
-                  accept="image/*"
+                  accept=".jpg,.jpeg,.png"
                   ref={fileInputRef}
                   className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setSelectedFile(file);
-                      setPreviewUrl(URL.createObjectURL(file));
-                    }
-                  }}
+                  onChange={(e) => handleSelectFile(e.target.files?.[0])}
                 />
                 <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => fileInputRef.current?.click()}>
                   <ImageIcon className="h-4 w-4 mr-2" />
-                  Them anh
+                  Thêm ảnh
                 </Button>
               </div>
               <Button onClick={handleAddPost} disabled={!newPost.trim() && !selectedFile}>
                 <Send className="h-4 w-4 mr-2" />
-                Dang bai
+                Đăng bài
               </Button>
             </div>
           </div>
