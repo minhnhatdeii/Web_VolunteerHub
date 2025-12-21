@@ -21,7 +21,7 @@ export default function ManagerDashboard() {
   const stats = useMemo(
     () => [
       { label: "Sự kiện đã tạo", value: 0, icon: Calendar },
-      { label: "ình nguyện viên đăng ký", value: 0, icon: Users },
+      { label: "Tình nguyện viên đăng ký", value: 0, icon: Users },
       { label: "Sự kiện đã duyệt", value: 0, icon: CheckCircle },
     ],
     []
@@ -173,7 +173,7 @@ export default function ManagerDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <div className="card-base p-8">
-                <h2 className="text-2xl font-bold mb-6">Su kien cua toi</h2>
+                <h2 className="text-2xl font-bold mb-6">Sự kiện của tôi</h2>
 
                 {loading ? (
                   <p className="text-muted">Đang tải dữ liệu...</p>
@@ -207,7 +207,7 @@ export default function ManagerDashboard() {
 
                         <div className="flex gap-2 self-center">
                           <Link href={`/events/${ev.id}/manage`} className="btn-secondary text-sm">
-                            Quan ly
+                            Quản lý
                           </Link>
                         </div>
                       </div>
@@ -219,7 +219,7 @@ export default function ManagerDashboard() {
 
             <div>
               <div className="card-base p-8 sticky top-20">
-                <h3 className="text-xl font-bold mb-4">Thong tin ca nhan</h3>
+                <h3 className="text-xl font-bold mb-4">Thông tin cá nhân</h3>
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-muted">Tên</p>

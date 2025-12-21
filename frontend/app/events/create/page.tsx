@@ -5,8 +5,9 @@ import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import Link from "next/link"
 import { ArrowLeft, Upload } from "lucide-react"
+import { toast } from "sonner"
 
-const BACKEND_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+const BACKEND_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api"
 
 interface FormData {
   title: string
@@ -53,13 +54,13 @@ export default function CreateEventPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    setErrors(prev => ({ ...prev, [name]: undefined })) // clear error on change
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFormData(prev => ({ ...prev, image: e.target.files![0] }))
+      setFormData((prev) => ({ ...prev, image: e.target.files![0] }))
     }
   }
 
@@ -67,13 +68,14 @@ export default function CreateEventPage() {
     const newErrors: FormErrors = {}
 
     if (!formData.title || formData.title.length < 3) newErrors.title = "Tên sự kiện phải >=3 ký tự"
-    if (!formData.description) newErrors.description = "Mô tả không được bỏ trống"
+    if (!formData.description) newErrors.description = "Mô tả không được để trống"
     if (!formData.startDate) newErrors.startDate = "Chọn ngày bắt đầu"
     if (!formData.startTime) newErrors.startTime = "Chọn giờ bắt đầu"
     if (!formData.endDate) newErrors.endDate = "Chọn ngày kết thúc"
     if (!formData.endTime) newErrors.endTime = "Chọn giờ kết thúc"
     if (!formData.location || formData.location.length < 3) newErrors.location = "Địa điểm phải >=3 ký tự"
-    if (!formData.maxVolunteers || Number(formData.maxVolunteers) <= 0) newErrors.maxVolunteers = "Nhập số lượng tình nguyện viên hợp lệ"
+    if (!formData.maxVolunteers || Number(formData.maxVolunteers) <= 0)
+      newErrors.maxVolunteers = "Nhập số lượng tình nguyện viên hợp lệ"
 
     if (formData.startDate && formData.startTime && formData.endDate && formData.endTime) {
       const start = new Date(`${formData.startDate}T${formData.startTime}:00`)
@@ -92,6 +94,7 @@ export default function CreateEventPage() {
     const token = localStorage.getItem("accessToken")
     if (!token) {
       setErrors({ general: "Bạn cần đăng nhập." })
+      toast.error("Vui lòng đăng nhập để tạo sự kiện")
       return
     }
 
@@ -99,35 +102,29 @@ export default function CreateEventPage() {
     const endDate = `${formData.endDate}T${formData.endTime}:00.000Z`
 
     try {
-      // Prepare FormData for the request to include the image file
-      const eventFormData = new FormData();
-
-      // Add all event data as form fields
-      eventFormData.append('title', formData.title);
-      eventFormData.append('description', formData.description);
-      eventFormData.append('startDate', startDate);
-      eventFormData.append('endDate', endDate);
-      eventFormData.append('location', formData.location);
-      eventFormData.append('category', formData.category);
-      eventFormData.append('maxParticipants', formData.maxVolunteers);
-
-      // Add image file if selected
+      const eventFormData = new FormData()
+      eventFormData.append("title", formData.title)
+      eventFormData.append("description", formData.description)
+      eventFormData.append("startDate", startDate)
+      eventFormData.append("endDate", endDate)
+      eventFormData.append("location", formData.location)
+      eventFormData.append("category", formData.category)
+      eventFormData.append("maxParticipants", formData.maxVolunteers)
       if (formData.image) {
-        eventFormData.append('thumbnail', formData.image);  // The field name should match the backend expected name
+        eventFormData.append("thumbnail", formData.image)
       }
 
       const res = await fetch(`${BACKEND_API_BASE_URL}/events`, {
         method: "POST",
         headers: {
-          // Don't set Content-Type header when using FormData, it will be set automatically
           Authorization: `Bearer ${token}`,
         },
         body: eventFormData,
       })
 
       const data = await res.json()
-console.log("Create Event Data:", data);
-console.log("Event ID:", data.id);
+      console.log("Create Event Data:", data)
+      console.log("Event ID:", data.id)
       if (!res.ok) {
         if (data.errors) {
           const zodErrors: FormErrors = {}
@@ -141,36 +138,35 @@ console.log("Event ID:", data.id);
         } else {
           setErrors({ general: data.error || "Không thể tạo sự kiện" })
         }
+        toast.error("Không thể tạo sự kiện, vui lòng kiểm tra lại thông tin")
         return
       }
 
-      // Check if event is already in PENDING_APPROVAL status before attempting to submit
-      if (data.status === 'PENDING_APPROVAL') {
-        // Event is already in the correct status for admin to review
-        alert("Tạo sự kiện và gửi duyệt thành công!");
+      if (data.status === "PENDING_APPROVAL") {
+        toast.success("Tạo sự kiện và gửi duyệt thành công")
       } else {
-        // Submit the event for approval (only if not already pending approval)
         try {
-          const eventId = data.data?.id;
+          const eventId = data.data?.id
           const submitRes = await fetch(`${BACKEND_API_BASE_URL}/events/${eventId}/submit`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-          });
+          })
 
-          const submitData = await submitRes.json();
-          console.log(submitData);
+          const submitData = await submitRes.json()
+          console.log(submitData)
 
           if (!submitRes.ok) {
-            console.error('Failed to submit event for approval:', submitData.error || submitData.message);
+            console.error("Failed to submit event for approval:", submitData.error || submitData.message)
+            toast.warning("Tạo sự kiện thành công nhưng gửi duyệt thất bại, vui lòng gửi lại sau")
+          } else {
+            toast.success("Tạo sự kiện và gửi duyệt thành công")
           }
-          alert("Tạo sự kiện và gửi duyệt thành công!");
         } catch (submitErr) {
-          console.error('Error submitting event for approval:', submitErr);
-          // Even if submission fails, the event was created successfully
-          alert("Tạo sự kiện và gửi duyệt thành công!");
+          console.error("Error submitting event for approval:", submitErr)
+          toast.success("Tạo sự kiện thành công, gửi duyệt bị lỗi — hãy thử lại trong trang quản lý")
         }
       }
 
@@ -187,9 +183,11 @@ console.log("Event ID:", data.id);
         image: null,
       })
       setErrors({})
+      toast.success("Tạo sự kiện thành công")
     } catch (err) {
       console.error(err)
       setErrors({ general: "Có lỗi khi gửi yêu cầu." })
+      toast.error("Không thể tạo sự kiện, vui lòng thử lại")
     }
   }
 
@@ -209,12 +207,9 @@ console.log("Event ID:", data.id);
           <div className="card-base p-8">
             <h1 className="text-3xl font-bold mb-8">Tạo sự kiện mới</h1>
 
-            {errors.general && (
-              <div className="text-red-600 mb-4 font-semibold">{errors.general}</div>
-            )}
+            {errors.general && <div className="text-red-600 mb-4 font-semibold">{errors.general}</div>}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Title */}
               <div>
                 <label className="block text-sm font-medium mb-2">Tên sự kiện</label>
                 <input
@@ -228,7 +223,6 @@ console.log("Event ID:", data.id);
                 {errors.title && <p className="text-red-600 text-sm mt-1">{errors.title}</p>}
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block text-sm font-medium mb-2">Mô tả</label>
                 <textarea
@@ -242,7 +236,6 @@ console.log("Event ID:", data.id);
                 {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
               </div>
 
-              {/* Start Date/Time */}
               <div>
                 <label className="block text-sm font-bold mb-2">Thời gian bắt đầu</label>
                 <div className="grid grid-cols-2 gap-4">
@@ -271,7 +264,6 @@ console.log("Event ID:", data.id);
                 </div>
               </div>
 
-              {/* End Date/Time */}
               <div>
                 <label className="block text-sm font-bold mb-2">Thời gian kết thúc</label>
                 <div className="grid grid-cols-2 gap-4">
@@ -300,7 +292,6 @@ console.log("Event ID:", data.id);
                 </div>
               </div>
 
-              {/* Location */}
               <div>
                 <label className="block text-sm font-medium mb-2">Địa điểm</label>
                 <input
@@ -314,7 +305,6 @@ console.log("Event ID:", data.id);
                 {errors.location && <p className="text-red-600 text-sm mt-1">{errors.location}</p>}
               </div>
 
-              {/* Category + Max Volunteers */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Danh mục</label>
@@ -339,7 +329,6 @@ console.log("Event ID:", data.id);
                 </div>
               </div>
 
-              {/* Image */}
               <div>
                 <label className="block text-sm font-medium mb-2">Hình ảnh</label>
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:bg-neutral-50 transition-colors cursor-pointer">
